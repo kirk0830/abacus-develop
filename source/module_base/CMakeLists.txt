@@ -48,6 +48,7 @@ add_library(
     parallel_reduce.cpp
     spherical_bessel_transformer.cpp
     cubic_spline.cpp
+    formatter.cpp
     ${LIBM_SRC}
 )
 

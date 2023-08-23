@@ -31,6 +31,7 @@ list(APPEND depend_files
   ../../module_base/global_variable.cpp
   ../../module_base/libm/branred.cpp
   ../../module_base/libm/sincos.cpp
+  ../../module_base/formatter.cpp
   ../../module_cell/module_neighbor/sltk_adjacent_set.cpp
   ../../module_cell/module_neighbor/sltk_atom_arrange.cpp
   ../../module_cell/module_neighbor/sltk_atom.cpp
