@@ -21,7 +21,7 @@ class Paw_Cell
     Paw_Cell(){};
     ~Paw_Cell(){};
 
-// PART I. Operations in ABACUS
+// PART I. Operations in ABACUS: Preparations & Calculating rhoij
 
     void init_paw_cell(
         const double ecutwfc_in, const double cell_factor_in,
@@ -154,9 +154,19 @@ class Paw_Cell
 
     void set_ylm(const int npw_in, const double ** kpg);
 
-// Part II. Passing infor for the initialization of PAW
+// Part II. Operations in ABACUS: V_{NL}|psi> and S|psi>
 
     public:
+
+    // This function calculates the nonlocal potential V_{NL}|psi> or (S+I)|psi>
+    // mode = 0 : V_{NL}|psi>, mode = 1 : (S+I)|psi>
+    void paw_nl_psi(const int mode, const std::complex<double> * psi, std::complex<double> * vnlpsi);
+
+    void set_dij(const int iat, double* dij_in){paw_atom_list[iat].set_dij(dij_in);}
+
+    void set_sij(const int iat, double* sij_in){paw_atom_list[iat].set_sij(sij_in);}
+
+// Part III. Passing infor for the initialization of PAW
     // The following gathers information needed by LibPAW, they will be inserted
     // to proper places in the main program
 
