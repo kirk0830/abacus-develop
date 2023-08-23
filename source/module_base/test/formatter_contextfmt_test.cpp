@@ -1,6 +1,34 @@
 #include "../formatter.h"
 #include <gtest/gtest.h>
 
+/************************************************
+ *  unit test of class ContextFmt
+ ***********************************************/
+
+/**
+ * - Tested Functions:
+ *   - ContextFmt()
+ *     - Default constructor
+ *   - set_context()
+ *     - Set context, adjust PhysicalFmt in it
+ *   - operator<<()
+ *     - Stream operator, import data, convert format and save data into Table object
+ *   - reset()
+ *     - Reset the context
+ *   - str()
+ *     - Pop up the data in Table object imported by using << operator
+ *   - enable_title()
+ *     - Enable title of Table object
+ *   - disable_title()
+ *     - Disable title of Table object
+ *   - only_title()
+ *     - Only print title of Table object
+ *   - enable_iterative()
+ *     - For SCF case only presently, will print title for once and data for many times
+ *   - disable_iterative()
+ *     - Disable iterative
+ */
+
 class ContextFmtTest : public testing::Test
 {
 };

@@ -1,6 +1,32 @@
 #include "../formatter.h"
 #include <gtest/gtest.h>
 
+/************************************************
+ *  unit test of class Fmt
+ ***********************************************/
+
+/**
+ * - Tested Functions:
+ *   - Fmt()
+ *     - default constructor, default values see formatter.h
+ *   - Fmt(int width, int precision, char fillChar, bool fixed, bool right, bool error)
+ *     - parameterized constructor
+ *   - set_width(int width)
+ *     - setter of width
+ *   - set_precision(int precision)
+ *     - setter of precision
+ *   - set_fillChar(char fillChar)
+ *     - setter of fillChar
+ *   - set_fixed(bool fixed)
+ *     - setter of scientific notation boolean, fixed means not scientific
+ *   - set_right(bool right)
+ *     - setter of right alignment boolean
+ *   - set_error(bool error)
+ *     - setter of + sign for positive numbers boolean
+ *   - format(T value)
+ *     - format a value, according to width, precision, fillChar, fixed, right, error
+ */
+
 class FmtTest : public testing::Test
 {
 };

@@ -1,6 +1,26 @@
 #include "../formatter.h"
 #include <gtest/gtest.h>
 
+/************************************************
+ *  unit test of class PhysicalFmt
+ ***********************************************/
+
+/**
+ * - Tested Functions:
+ *   - PhysicalFmt()
+ *     - default constructor, default values see formatter.h
+ *   - PhysicalFmt(std::string context, Fmt* p_formatter)
+ *     - parameterized constructor, used to bundle with a formatter, set it according to the context and predefined rules, see function body of adjust_formatter()
+ *   - adjust_formatter(bool right = true)
+ *     - adjust the formatter according to the context
+ *   - set_context(std::string context)
+ *     - setter of context
+ *   - set_p_formatter(Fmt* p_formatter)
+ *     - setter of p_formatter, the pointer to Fmt object which is used to format the value
+ *   - set_decorator_mode(bool decorator_mode)
+ *     - setter of decorator_mode boolean
+ */
+
 class PhysFmtTest : public testing::Test
 {
 };

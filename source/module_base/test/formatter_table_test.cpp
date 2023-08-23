@@ -1,6 +1,60 @@
 #include "../formatter.h"
 #include <gtest/gtest.h>
 
+/************************************************
+ *  unit test of class Table
+ ***********************************************/
+
+/**
+ * - Tested Functions:
+ *   - Table()
+ *     - default constructor, default values see formatter.h
+ *   - set_mode(int mode)
+ *     - setter of mode
+ *   - set_col_delimiter(char col_delimiter)
+ *     - setter of col_delimiter
+ *   - set_frame_switches(std::vector<int> frame_switches)
+ *     - setter of frame_switches
+ *   - set_frame_delimiters(std::vector<char> frame_delimiters)
+ *     - setter of frame_delimiters
+ *   - set_frame_mid_switch(bool frame_mid_switch)
+ *     - setter of frame_mid_switch
+ *   - set_frame_mid_delimiter(char frame_mid_delimiter)
+ *     - setter of frame_mid_delimiter
+ *   - enable_flexible_width()
+ *     - enable the flexible width mode, which adjusts the column width according to the data
+ *   - disable_flexible_width()
+ *     - disable the flexible width mode, which sets the column width to the maximum width of the data
+ *   - enable_up_frame()
+ *     - enable the upper frame output
+ *   - disable_up_frame()
+ *     - disable the upper frame output
+ *   - enable_down_frame()
+ *     - enable the lower frame output
+ *   - disable_down_frame()
+ *     - disable the lower frame output
+ *   - enable_left_frame()
+ *     - enable the left frame output
+ *   - disable_left_frame()
+ *     - disable the left frame output
+ *   - enable_right_frame()
+ *     - enable the right frame output
+ *   - disable_right_frame()
+ *     - disable the right frame output
+ *   - enable_mid_frame()
+ *      - enable the frame between title and data output
+ *   - disable_mid_frame()
+ *     - disable the frame between title and data output
+ *   - add_col(std::string title, std::vector<std::string> data)
+ *     - add a column to the table
+ *   - reset()
+ *     - reset the table
+ *   - adjust_col_width()
+ *     - adjust the column width according to the data
+ *   - print_table()
+ *     - print the table
+ */
+
 class TableTest : public testing::Test
 {
 };
