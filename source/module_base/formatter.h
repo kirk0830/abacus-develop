@@ -485,17 +485,17 @@ namespace formatter
             /// @brief database of predefined physical format
             std::unordered_map<std::string, std::pair<int, std::vector<std::string>>> predefined_phys_fmt = {
                 {"vector3d", std::make_pair(1,
-                (std::vector<std::string>){"coordinate", "coordinate", "coordinate"})}, // one can define general context (recommended)
+                std::vector<std::string>{"coordinate", "coordinate", "coordinate"})}, // one can define general context (recommended)
                 {"vector3d_i", std::make_pair(1,
-                (std::vector<std::string>){"constraint", "constraint", "constraint"})}, // vector3d will be position, vectors and for this, it is constraint, kmesh, ...
+                std::vector<std::string>{"constraint", "constraint", "constraint"})}, // vector3d will be position, vectors and for this, it is constraint, kmesh, ...
                 {"scf", std::make_pair(0,
-                (std::vector<std::string>){"str_w4", "int_w4", "energy", "energy", "energy", "time"})}, // but for scf it is really a special case
+                std::vector<std::string>{"str_w4", "int_w4", "energy", "energy", "energy", "time"})}, // but for scf it is really a special case
                 {"time_statistics", std::make_pair(0,
-                (std::vector<std::string>){"str_w30", "str_w30", "time", "int_w8", "double_w6_f2", "double_w6_f2"})}, // so is time statistics
+                std::vector<std::string>{"str_w30", "str_w30", "time", "int_w8", "double_w6_f2", "double_w6_f2"})}, // so is time statistics
                 {"atomic_species", std::make_pair(1,
-                (std::vector<std::string>){"str_w4", "mass", "str_w30"})}, // so is ATOMIC_SPECIES
+                std::vector<std::string>{"str_w4", "mass", "str_w30"})}, // so is ATOMIC_SPECIES
                 {"lattice_vectors", std::make_pair(1,
-                (std::vector<std::string>){"coordinate", "coordinate", "coordinate"})} // but it is not true for LATTICE_VECTORS
+                std::vector<std::string>{"coordinate", "coordinate", "coordinate"})} // but it is not true for LATTICE_VECTORS
             };
     };
 }
