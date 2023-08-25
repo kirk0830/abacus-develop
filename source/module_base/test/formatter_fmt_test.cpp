@@ -1,4 +1,4 @@
-#include "../formatter.h"
+#include "../formatter_fmt.h"
 #include <gtest/gtest.h>
 
 /************************************************
