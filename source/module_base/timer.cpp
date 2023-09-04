@@ -142,10 +142,11 @@ void timer::write_to_json(std::string file_name)
 	// check if a double is inf, if so, return "null", else return a string of the input double
 	auto double_to_string = [](double d) -> std::string
 	{
+		formatter::Fmt fmt(0, 15, ' ', false, false, false);
 		if(isinf(d))
-			return "null";
+			return "Infinity";
 		else
-			return std::to_string(d);
+			return fmt.format(d);
 	};
 
 	// The output json file format is like this:
@@ -191,7 +192,7 @@ void timer::write_to_json(std::string file_name)
 			const Timer_One timer_one = timer_pool_B.second;
 			ofs << indent << indent << indent << indent << "{\n";
 			ofs << indent << indent << indent << indent << "\"name\": \"" << name << "\",\n";
-			ofs << indent << indent << indent << indent << "\"cpu_second\": " << timer_one.cpu_second << ",\n";
+			ofs << indent << indent << indent << indent << "\"cpu_second\": " << std::setprecision(15) << timer_one.cpu_second << ",\n";
 			ofs << indent << indent << indent << indent << "\"calls\": " << timer_one.calls << ",\n";
 			ofs << indent << indent << indent << indent << "\"cpu_second_per_call\": " << double_to_string(timer_one.cpu_second/timer_one.calls) << ",\n";
 			ofs << indent << indent << indent << indent << "\"cpu_second_per_total\": " << double_to_string(timer_one.cpu_second/timer_pool[""]["total"].cpu_second) << "\n";
@@ -238,8 +239,6 @@ void timer::print_all(std::ofstream &ofs)
 	std::vector<double> pers;
 	std::string table;
 	context.set_context({"mid_title", "mid_title", "time", "int_w8", "time", "percentage"});
-	std::cout << std::setprecision(2);
-	ofs << std::setprecision(3);
 	for(auto &timer_pool_order_A : timer_pool_order)
 	{
 		const std::string &class_name = timer_pool_order_A.first.first;
