@@ -115,7 +115,7 @@ namespace formatter
                 this->cache_title_ = "";
                 this->fmt_.reset();
                 this->icol_++;
-                this->title_switch_ += 2;
+                this->title_switch_++;
                 return *this;
             }
             /// @brief overloaded operator<<, for inputing data in 1 dimension T*
@@ -142,7 +142,7 @@ namespace formatter
                 this->cache_title_ = "";
                 this->fmt_.reset();
                 this->icol_++;
-                this->title_switch_ += 2;
+                this->title_switch_++;
                 return *this;
             }
 
@@ -153,6 +153,7 @@ namespace formatter
 
             /// @brief reset all
             void reset();
+            void context_refresh();
             /// @brief print the table
             std::string str(bool next_line = false);
             /// @brief set to mode in which title will be manually input and certainly will be output
@@ -247,7 +248,7 @@ namespace formatter
                 std::vector<std::string>{"constraint", "constraint", "constraint"})}, // vector3d will be position, vectors and for this, it is constraint, kmesh, ...
                 {"scf", std::make_pair(0,
                 std::vector<std::string>{"str_w4", "int_w4", "energy", "energy", "energy", "time"})}, // but for scf it is really a special case
-                {"time_statistics", std::make_pair(1,
+                {"time_statistics", std::make_pair(0,
                 std::vector<std::string>{"mid_title", "mid_title", "time", "int_w8", "time", "percentage"})}, // so is time statistics
                 {"atomic_species", std::make_pair(1,
                 std::vector<std::string>{"str_w4", "mass", "str_w30"})}, // so is ATOMIC_SPECIES

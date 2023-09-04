@@ -252,11 +252,10 @@ void ElecState::print_etot(const bool converged,
     {
         energies_eV.push_back(energies_Ry[i] * ModuleBase::Ry_to_eV);
     }
-    context << "Energy" << titles << "Rydberg" << energies_Ry << "eV" << energies_eV;
     context.enable_title();
+    context << "Energy" << titles << "Rydberg" << energies_Ry << "eV" << energies_eV;
     context.center_title();
     GlobalV::ofs_running << context.str() << std::endl;
-
     if (iter_in == 1) // pengfei Li added 2015-1-31
     {
         this->f_en.etot_old = this->f_en.etot;

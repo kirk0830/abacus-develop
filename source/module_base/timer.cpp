@@ -255,8 +255,8 @@ void timer::print_all(std::ofstream &ofs)
 		avgs.push_back(timer_one.cpu_second/timer_one.calls);
 		pers.push_back(timer_one.cpu_second / timer_pool_order[0].second.cpu_second * 100);
 	}
-	context<<"CLASS_NAME"<<class_names<<"NAME"<<names<<"TIME(Sec)"<<times<<"CALLS"<<calls<<"AVG(Sec)"<<avgs<<"PER(%)"<<pers;
 	context.enable_title();
+	context<<"CLASS_NAME"<<class_names<<"NAME"<<names<<"TIME(Sec)"<<times<<"CALLS"<<calls<<"AVG(Sec)"<<avgs<<"PER(%)"<<pers;
 	context.center_title();
 	context.set_overall_title("TIME STATISTICS");
 	table = context.str();

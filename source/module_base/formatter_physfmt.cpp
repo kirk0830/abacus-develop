@@ -122,6 +122,22 @@ void formatter::PhysicalFmt::adjust_formatter(bool left) {
         this->p_formatter_->set_right(!left);
     }
     else if (
+        (strcmp(context, "str_w10") == 0)
+      ||(strcmp(context, "short_title") == 0)
+    ) {
+        this->p_formatter_->set_width(10); this->p_formatter_->set_precision(0);
+        this->p_formatter_->set_fillChar(' '); this->p_formatter_->set_fixed(true);
+        this->p_formatter_->set_right(left);
+    }
+    else if (
+        (strcmp(context, "str_w20") == 0)
+      ||(strcmp(context, "mid_title") == 0)
+    ) {
+        this->p_formatter_->set_width(20); this->p_formatter_->set_precision(0);
+        this->p_formatter_->set_fillChar(' '); this->p_formatter_->set_fixed(true);
+        this->p_formatter_->set_right(left);
+    }
+    else if (
         (strcmp(context, "str_w30") == 0)
       ||(strcmp(context, "long_title") == 0)
     ) {
