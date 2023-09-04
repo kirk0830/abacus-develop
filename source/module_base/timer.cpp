@@ -8,7 +8,6 @@
 #include <vector>
 #include <math.h>
 #include "module_base/formatter.h"
-#include "module_base/global_variable.h"
 
 #ifdef __MPI
 #include "mpi.h"
@@ -262,7 +261,7 @@ void timer::print_all(std::ofstream &ofs)
 	table = context.str();
 	std::cout<<table<<std::endl;
 	ofs<<table<<std::endl;
-	write_to_json(GlobalV::global_out_dir+"time.json");
+	write_to_json("time.json");
 }
 }
 
