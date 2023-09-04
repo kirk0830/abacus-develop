@@ -9,6 +9,10 @@ install(DIRECTORY support DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 AddTest(
   TARGET relax_new_line_search
   SOURCES line_search_test.cpp ../line_search.cpp ../../../module_base/global_variable.cpp ../../../module_base/global_file.cpp ../../../module_base/global_function.cpp ../../../module_base/memory.cpp ../../../module_base/timer.cpp ../../../module_base/tool_quit.cpp
+  ../../../module_base/formatter_fmt.cpp
+  ../../../module_base/formatter_physfmt.cpp
+  ../../../module_base/formatter_table.cpp
+  ../../../module_base/formatter_contextfmt.cpp
 )
 
 AddTest(
@@ -17,5 +21,9 @@ AddTest(
     ../../../module_base/matrix3.cpp ../../../module_base/intarray.cpp ../../../module_base/tool_title.cpp ../../../module_io/input.cpp
     ../../../module_base/global_function.cpp ../../../module_base/complexmatrix.cpp ../../../module_base/matrix.cpp
     ../../../module_base/complexarray.cpp ../../../module_base/tool_quit.cpp
+    ../../../module_base/formatter_fmt.cpp
+    ../../../module_base/formatter_physfmt.cpp
+    ../../../module_base/formatter_table.cpp
+    ../../../module_base/formatter_contextfmt.cpp
   LIBS ${math_libs}
 )

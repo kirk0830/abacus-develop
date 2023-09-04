@@ -290,6 +290,10 @@ AddTest(
     ../xc_funct_corr_gga.cpp ../xc_funct_corr_lda.cpp ../xc_funct_exch_gga.cpp
     ../xc_funct_exch_lda.cpp ../xc_funct_hcth.cpp
     ../../../module_base/matrix.cpp ../../../module_base/timer.cpp
+    ../../../module_base/formatter_fmt.cpp
+    ../../../module_base/formatter_physfmt.cpp
+    ../../../module_base/formatter_table.cpp
+    ../../../module_base/formatter_contextfmt.cpp
     ../xc_functional_vxc.cpp
 )
 
@@ -302,6 +306,10 @@ AddTest(
     ../xc_funct_corr_gga.cpp ../xc_funct_corr_lda.cpp ../xc_funct_exch_gga.cpp
     ../xc_funct_exch_lda.cpp ../xc_funct_hcth.cpp
     ../../../module_base/matrix.cpp ../../../module_base/timer.cpp
+    ../../../module_base/formatter_fmt.cpp
+    ../../../module_base/formatter_physfmt.cpp
+    ../../../module_base/formatter_table.cpp
+    ../../../module_base/formatter_contextfmt.cpp
     ../xc_functional_vxc.cpp
 )
 
@@ -314,5 +322,9 @@ AddTest(
     ../xc_funct_corr_gga.cpp ../xc_funct_corr_lda.cpp ../xc_funct_exch_gga.cpp
     ../xc_funct_exch_lda.cpp ../xc_funct_hcth.cpp
     ../../../module_base/matrix.cpp ../../../module_base/timer.cpp
+    ../../../module_base/formatter_fmt.cpp
+    ../../../module_base/formatter_physfmt.cpp
+    ../../../module_base/formatter_table.cpp
+    ../../../module_base/formatter_contextfmt.cpp
     ../xc_functional_vxc.cpp
 )

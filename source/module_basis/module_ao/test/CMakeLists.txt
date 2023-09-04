@@ -18,6 +18,10 @@ list(APPEND depend_files
   ../../../module_base/tool_quit.cpp
   ../../../module_base/tool_check.cpp
   ../../../module_base/timer.cpp
+  ../../../module_base/formatter_fmt.cpp
+  ../../../module_base/formatter_physfmt.cpp
+  ../../../module_base/formatter_table.cpp
+  ../../../module_base/formatter_contextfmt.cpp
   ../../../module_base/mathzone_add1.cpp
   ../../../module_base/global_variable.cpp
   ../../../module_base/global_function.cpp
