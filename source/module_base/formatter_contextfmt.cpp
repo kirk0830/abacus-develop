@@ -139,6 +139,7 @@ formatter::ContextFmt& formatter::ContextFmt::operator<<(const std::string& valu
         }
         Table::add_col(this->cache_title_, (std::vector<std::string>){this->fmt_.format(value)});
         this->icol_++;
+        this->fmt_.reset();
     }
     if (Table::get_mode() == 1) {
         this->title_switch_ += 2;
@@ -165,13 +166,23 @@ template<> formatter::ContextFmt& formatter::ContextFmt::operator<< <std::string
 template<> formatter::ContextFmt& formatter::ContextFmt::operator<< <char>(char*& value);
 
 void formatter::ContextFmt::reset() {
-    Table::reset();
+    //this->context_ = "";
+    // we do not reset context because it will erase format
+    Table::reset(); // it is, itself
     this->phys_fmt_.clear();
+    this->default_phys_fmt_ = "energy";
     this->cache_title_ = "";
-    this->icol_ = 0;
+    this->with_title_ = true;
+
     this->ncol_ = 0;
+    this->icol_ = 0;
     this->nrows_.clear();
+    this->iterative_ = 0;
+
+    this->fmt_.reset();
     this->title_switch_ = 0;
+
+    this->disable_title(); // do what constructor does
     this->set_context(this->context_);
 }
 

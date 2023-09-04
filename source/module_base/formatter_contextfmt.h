@@ -78,6 +78,7 @@ namespace formatter
                     }
                     Table::add_col(this->cache_title_, (std::vector<std::string>){this->fmt_.format(value)});
                     this->cache_title_ = "";
+                    this->fmt_.reset();
                     this->icol_++;
                 }
                 if (Table::get_mode() == 1) {
@@ -112,6 +113,7 @@ namespace formatter
                 }
                 Table::add_col(this->cache_title_, value_);
                 this->cache_title_ = "";
+                this->fmt_.reset();
                 this->icol_++;
                 this->title_switch_ += 2;
                 return *this;
@@ -138,6 +140,7 @@ namespace formatter
                 }
                 Table::add_col(this->cache_title_, value_);
                 this->cache_title_ = "";
+                this->fmt_.reset();
                 this->icol_++;
                 this->title_switch_ += 2;
                 return *this;
@@ -244,8 +247,8 @@ namespace formatter
                 std::vector<std::string>{"constraint", "constraint", "constraint"})}, // vector3d will be position, vectors and for this, it is constraint, kmesh, ...
                 {"scf", std::make_pair(0,
                 std::vector<std::string>{"str_w4", "int_w4", "energy", "energy", "energy", "time"})}, // but for scf it is really a special case
-                {"time_statistics", std::make_pair(0,
-                std::vector<std::string>{"str_w30", "str_w30", "time", "int_w8", "double_w6_f2", "double_w6_f2"})}, // so is time statistics
+                {"time_statistics", std::make_pair(1,
+                std::vector<std::string>{"mid_title", "mid_title", "time", "int_w8", "time", "percentage"})}, // so is time statistics
                 {"atomic_species", std::make_pair(1,
                 std::vector<std::string>{"str_w4", "mass", "str_w30"})}, // so is ATOMIC_SPECIES
                 {"lattice_vectors", std::make_pair(1,

@@ -5,8 +5,9 @@
 //==========================================================
 #include "timer.h"
 #include "chrono"
-#include<vector>
+#include <vector>
 #include <math.h>
+#include "module_base/formatter.h"
 
 #ifdef __MPI
 #include "mpi.h"
@@ -229,11 +230,16 @@ void timer::print_all(std::ofstream &ofs)
 			timer_pool_order[timer_one.order] = std::pair<std::pair<std::string,std::string>, Timer_One> {std::pair<std::string,std::string >{class_name,name}, timer_one};
 		}
 	}
-
+	std::vector<std::string> class_names;
+	std::vector<std::string> names;
+	std::vector<double> times;
+	std::vector<int> calls;
+	std::vector<double> avgs;
+	std::vector<double> pers;
+	std::string table;
+	context.set_context({"mid_title", "mid_title", "time", "int_w8", "time", "percentage"});
 	std::cout << std::setprecision(2);
 	ofs << std::setprecision(3);
-	std::cout<<"\n  |CLASS_NAME---------|NAME---------------|TIME(Sec)-----|CALLS----|AVG------|PER%-------" << std::endl;
-	ofs <<"\n\n\n\n  |CLASS_NAME---------|NAME---------------|TIME(Sec)-----|CALLS----|AVG------|PER%-------" << std::endl;
 	for(auto &timer_pool_order_A : timer_pool_order)
 	{
 		const std::string &class_name = timer_pool_order_A.first.first;
@@ -242,32 +248,20 @@ void timer::print_all(std::ofstream &ofs)
 
 		if(timer_one.cpu_second < small)
 			continue;
-
-		ofs << std::resetiosflags(std::ios::scientific);
-		ofs  << " "
-			// << std::setw(2)  << timer_one.level
-			 << std::setw(2)  << " "
-			 << std::setw(20) << class_name
-			 << std::setw(20) << name
-			 << std::setw(15) << std::setprecision(5) << timer_one.cpu_second
-			 << std::setw(10) << timer_one.calls
-			 << std::setw(10) << std::setprecision(2) << timer_one.cpu_second/timer_one.calls
-			 << std::setw(10) << timer_one.cpu_second / timer_pool_order[0].second.cpu_second * 100 << "%" << std::endl;
-
-		std::cout << std::resetiosflags(std::ios::scientific);
-		
-		std::cout << " " 
-			// << std::setw(2)  << timer_one.level
-			 << std::setw(2)  << " "
-			 << std::setw(20) << class_name
-			 << std::setw(20) << name
-			 << std::setw(15) << std::setprecision(5) << timer_one.cpu_second
-			 << std::setw(10) << timer_one.calls
-			 << std::setw(10) << std::setprecision(2) << timer_one.cpu_second/timer_one.calls
-			 << std::setw(10) << timer_one.cpu_second / timer_pool_order[0].second.cpu_second * 100 << "%" << std::endl;
+		class_names.push_back(class_name);
+		names.push_back(name);
+		times.push_back(timer_one.cpu_second);
+		calls.push_back(timer_one.calls);
+		avgs.push_back(timer_one.cpu_second/timer_one.calls);
+		pers.push_back(timer_one.cpu_second / timer_pool_order[0].second.cpu_second * 100);
 	}
-	std::cout<<" ----------------------------------------------------------------------------------------"<<std::endl;
-	ofs <<" ----------------------------------------------------------------------------------------"<<std::endl;
+	context<<"CLASS_NAME"<<class_names<<"NAME"<<names<<"TIME(Sec)"<<times<<"CALLS"<<calls<<"AVG(Sec)"<<avgs<<"PER(%)"<<pers;
+	context.enable_title();
+	context.center_title();
+	context.set_overall_title("TIME STATISTICS");
+	table = context.str();
+	std::cout<<table<<std::endl;
+	ofs<<table<<std::endl;
 	write_to_json("time.json");
 }
 }
