@@ -11,7 +11,7 @@ AddTest(
 )
 AddTest(
   TARGET base_timer
-  SOURCES timer_test.cpp ../timer.cpp ../formatter_fmt.cpp ../formatter_physfmt.cpp ../formatter_table.cpp ../formatter_contextfmt.cpp
+  SOURCES timer_test.cpp ../timer.cpp ../formatter_fmt.cpp ../formatter_physfmt.cpp ../formatter_table.cpp ../formatter_contextfmt.cpp ../global_variable.cpp
 )
 AddTest(
   TARGET base_tool_quit

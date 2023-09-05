@@ -113,7 +113,7 @@ TEST_F(TimerTest, PrintAll)
 	output = testing::internal::GetCapturedStdout();
 	ofs.close();
 	// checout output on screen
-	EXPECT_THAT(output,testing::HasSubstr("TIME(Sec)"));
+	EXPECT_THAT(output,testing::HasSubstr("-------------------------------------------------"));
 	// check output in file
 	ifs.open("tmp");
 	getline(ifs,output);
@@ -121,7 +121,7 @@ TEST_F(TimerTest, PrintAll)
 	getline(ifs,output);
 	getline(ifs,output);
 	getline(ifs,output);
-	EXPECT_THAT(output,testing::HasSubstr("TIME(Sec)"));
+	EXPECT_THAT(output,testing::HasSubstr("-------------------------------------------------"));
 	ifs.close();
 	remove("time.json");
 }
@@ -144,7 +144,7 @@ TEST_F(TimerTest, Finish)
 	output = testing::internal::GetCapturedStdout();
 	ofs.close();
 	// checout output on screen
-	EXPECT_THAT(output,testing::HasSubstr("TIME(Sec)"));
+	EXPECT_THAT(output,testing::HasSubstr("-------------------------------------------------"));
 	// check output in file
 	ifs.open("tmp");
 	getline(ifs,output);
@@ -152,7 +152,7 @@ TEST_F(TimerTest, Finish)
 	getline(ifs,output);
 	getline(ifs,output);
 	getline(ifs,output);
-	EXPECT_THAT(output,testing::HasSubstr("TIME(Sec)"));
+	EXPECT_THAT(output,testing::HasSubstr("-------------------------------------------------"));
 	ifs.close();
 }
 

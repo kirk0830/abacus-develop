@@ -191,11 +191,11 @@ void timer::write_to_json(std::string file_name)
 			const std::string name = timer_pool_B.first;
 			const Timer_One timer_one = timer_pool_B.second;
 			ofs << indent << indent << indent << indent << "{\n";
-			ofs << indent << indent << indent << indent << indent << "\"name\": \"" << name << "\",\n";
-			ofs << indent << indent << indent << indent << indent << "\"cpu_second\": " << std::setprecision(15) << timer_one.cpu_second << ",\n";
-			ofs << indent << indent << indent << indent << indent << "\"calls\": " << timer_one.calls << ",\n";
-			ofs << indent << indent << indent << indent << indent << "\"cpu_second_per_call\": " << double_to_string(timer_one.cpu_second/timer_one.calls) << ",\n";
-			ofs << indent << indent << indent << indent << indent << "\"cpu_second_per_total\": " << double_to_string(timer_one.cpu_second/timer_pool[""]["total"].cpu_second) << "\n";
+			ofs << indent << indent << indent << indent << "\"name\": \"" << name << "\",\n";
+			ofs << indent << indent << indent << indent << "\"cpu_second\": " << std::setprecision(15) << timer_one.cpu_second << ",\n";
+			ofs << indent << indent << indent << indent << "\"calls\": " << timer_one.calls << ",\n";
+			ofs << indent << indent << indent << indent << "\"cpu_second_per_call\": " << double_to_string(timer_one.cpu_second/timer_one.calls) << ",\n";
+			ofs << indent << indent << indent << indent << "\"cpu_second_per_total\": " << double_to_string(timer_one.cpu_second/timer_pool[""]["total"].cpu_second) << "\n";
 			if (order_b == timer_pool_A.second.size())
 				ofs << indent << indent << indent << indent << "}\n";
 			else

@@ -62,6 +62,7 @@ void formatter::PhysicalFmt::adjust_formatter(bool left) {
       ||(strcmp(context, "mass") == 0)
       ||(strcmp(context, "percentage") == 0)
       ||(strcmp(context, "time") == 0)
+      ||(strcmp(context, "memory") == 0)
     ) {
         this->p_formatter_->set_width(6); this->p_formatter_->set_precision(2);
         this->p_formatter_->set_fillChar(' '); this->p_formatter_->set_fixed(true);
