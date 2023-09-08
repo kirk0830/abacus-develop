@@ -24,6 +24,8 @@ list(APPEND depend_files
   ../../../module_base/global_file.cpp
   ../../../module_base/libm/branred.cpp
   ../../../module_base/libm/sincos.cpp
+  ../../../module_base/spherical_bessel_transformer.cpp
+  ../../../module_base/cubic_spline.cpp
   ../ORB_control.cpp
   ../ORB_read.cpp
   ../ORB_atomic.cpp
