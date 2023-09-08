@@ -5,7 +5,7 @@ remove_definitions(-D__EXX)
 
 AddTest(
   TARGET pwdft_soc
-  LIBS ${math_libs}
+  LIBS ${math_libs} formatter
   SOURCES soc_test.cpp ../soc.cpp
   	../../../module_base/global_variable.cpp
   	../../../module_base/global_function.cpp
@@ -18,8 +18,4 @@ AddTest(
 	../../../module_base/parallel_global.cpp
 	../../../module_base/parallel_common.cpp
 	../../../module_base/parallel_reduce.cpp
-	../../../module_base/formatter_fmt.cpp
-	../../../module_base/formatter_physfmt.cpp
-	../../../module_base/formatter_table.cpp
-	../../../module_base/formatter_contextfmt.cpp
 )
