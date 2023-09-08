@@ -41,7 +41,7 @@ list(APPEND depend_files
   )
 AddTest(
   TARGET orbital_equal_test
-  LIBS ${math_libs} device formatter
+  LIBS ${math_libs} device numerical_atomic_orbitals container formatter 
   SOURCES 1_snap_equal_test.cpp ORB_unittest.cpp
   ../../../module_base/parallel_reduce.cpp ../../../module_base/parallel_global.cpp ../../../module_base/parallel_common.cpp
   ${depend_files}
