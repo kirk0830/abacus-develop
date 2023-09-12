@@ -113,8 +113,18 @@ void HSolverPW<FPTYPE, Device>::solve(hamilt::Hamilt<FPTYPE, Device>* pHamilt,
         /// update H(k) for each k point
         pHamilt->updateHk(ik);
 
-        this->updatePsiK(pHamilt, psi, ik);
-
+        if(GlobalV::psi_initializer)
+        {
+            if((GlobalV::KS_SOLVER == "cg"))
+            {
+                std::vector<double> etatom(psi.get_nbands(), 0.0);
+                DiagoIterAssist<FPTYPE, Device>::diagH_subspace(pHamilt, psi, psi, etatom);
+            }
+        }
+        else
+        {
+            this->updatePsiK(pHamilt, psi, ik);
+        }
         // template add precondition calculating here
         update_precondition(precondition, ik, this->wfc_basis->npwk[ik]);
 

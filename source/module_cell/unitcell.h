@@ -247,6 +247,7 @@ public:
 	InfoNonlocal infoNL;//store nonlocal information of lcao, added by zhengdy 2021-09-07
     void read_orb_file(int it, std::string &orb_file, std::ofstream &ofs_running, Atom *atom);
 #endif
+    void read_nao_flz(int it, std::string &orb_file, std::ofstream &ofs_running, Atom *atom);
 	int read_atom_species(std::ifstream &ifa, std::ofstream &ofs_running); // read in the atom information for each type of atom
 	bool read_atom_positions(std::ifstream &ifpos, std::ofstream &ofs_running, std::ofstream &ofs_warning); // read in atomic positions
 

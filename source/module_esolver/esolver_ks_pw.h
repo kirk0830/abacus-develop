@@ -2,6 +2,7 @@
 #define ESOLVER_KS_PW_H
 #include "./esolver_ks.h"
 #include "module_hamilt_pw/hamilt_pwdft/operator_pw/velocity_pw.h"
+#include "module_psi/psi_initializer.h"
 // #include "Basis_PW.h"
 // #include "Estate_PW.h"
 // #include "Hamilton_PW.h"
@@ -81,7 +82,7 @@ namespace ModuleESolver
 
 
     private:
-        
+        psi_initializer* psi_init = nullptr;
         Device * ctx = {};
         psi::AbacusDevice_t device = {};
         psi::Psi<std::complex<FPTYPE>, Device>* kspw_psi = nullptr;

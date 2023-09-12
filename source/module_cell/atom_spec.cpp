@@ -26,6 +26,9 @@ Atom::Atom()
 	iw2_ylm = new int[1];
 	iw2_new = new bool[1];
     mbl = new ModuleBase::Vector3<int>[1];
+    n_rgrid = 0;
+    rgrid = nullptr;
+    flz = nullptr;
 }
 
 Atom::~Atom()
@@ -38,6 +41,22 @@ Atom::~Atom()
     delete[] angle1;
     delete[] angle2;
     delete[] m_loc_;
+    if (n_rgrid != nullptr)
+    { 
+        int flattened_ichi = 0;
+        for (int l = 0; l < nwl+1; l++)
+        {
+            for (int j = 0; j < l_nchi[l]; j++)
+            {
+                delete[] rgrid[flattened_ichi];
+                delete[] flz[flattened_ichi];
+                flattened_ichi++;
+            }
+        }
+        delete[] rgrid;
+        delete[] flz;
+        delete[] n_rgrid;
+    }
     delete[] l_nchi;
     delete[] iw2l;
     delete[] iw2n;
@@ -45,6 +64,7 @@ Atom::~Atom()
 	delete[] iw2_ylm;
 	delete[] iw2_new;
     delete[] mbl;
+
 }
 
 void Atom::set_index(void)

@@ -36,7 +36,13 @@
 #include "module_io/winput.h"
 #include "module_io/write_wfc_r.h"
 #include "module_psi/kernels/device.h"
-
+//---------------------------------------------------
+#include "module_psi/psi_initializer_atomic.h"
+#include "module_psi/psi_initializer_nao.h"
+#include "module_psi/psi_initializer_random.h"
+#include "module_psi/psi_initializer_atomic_random.h"
+#include "module_psi/psi_initializer_nao_random.h"
+//---------------------------------------------------
 #include <ATen/kernels/blas_op.h>
 #include <ATen/kernels/lapack_op.h>
 
@@ -94,15 +100,16 @@ ESolver_KS_PW<FPTYPE, Device>::~ESolver_KS_PW()
     {
         delete reinterpret_cast<psi::Psi<std::complex<double>, Device>*>(this->__kspw_psi);
     }
+    if (this->psi_init != nullptr)
+    {
+        delete this->psi_init;
+        this->psi_init = nullptr;
+    }
 }
 
 template <typename FPTYPE, typename Device>
 void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
 {
-    if (this->psi != nullptr)
-        delete this->psi;
-    this->psi = this->wf.allocate(this->kv.nks, this->kv.ngk.data(), this->pw_wfc->npwk_max);
-
     // cout<<this->pw_rho->nrxx<<endl;
     // cout<<"before ufft allocate"<<endl;
 
@@ -134,15 +141,39 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
 
     GlobalC::ppcell.cal_effective_D();
 
-    //==================================================
-    // create GlobalC::ppcell.tab_at , for trial wave functions.
-    //==================================================
-    this->wf.init_at_1(&this->sf);
+    if (this->psi != nullptr)
+        delete this->psi;
+    if (GlobalV::psi_initializer)
+    {
+        this->psi = this->psi_init->allocate();
+        if (GlobalV::init_wfc.substr(0,6) == "atomic")
+        {
+            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            this->psi_init->cal_ovlp_pswfcjlq();
+        }
+        else if (GlobalV::init_wfc == "random")
+        {
+            //do nothing here
+        }
+        else if (GlobalV::init_wfc.substr(0,3) == "nao")
+        {
+            this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
+            this->psi_init->cal_ovlp_flzjlq();
+        }
+    }
+    else
+    {
+        this->psi = this->wf.allocate(this->kv.nks, this->kv.ngk.data(), this->pw_wfc->npwk_max);
+        //==================================================
+        // create GlobalC::ppcell.tab_at , for trial wave functions.
+        //==================================================
+        this->wf.init_at_1(&this->sf);
 
-    //================================
-    // Initial start wave functions
-    //================================
-    this->wf.wfcinit(this->psi, this->pw_wfc);
+        //================================
+        // Initial start wave functions
+        //================================
+        this->wf.wfcinit(this->psi, this->pw_wfc);
+    }
 
     // denghui added 20221116
     this->kspw_psi = GlobalV::device_flag == "gpu" || GlobalV::precision_flag == "single"
@@ -190,6 +221,14 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
                                                     &(this->sf),
                                                     &(this->pelec->f_en.etxc),
                                                     &(this->pelec->f_en.vtxc));
+    }
+
+    if (GlobalV::psi_initializer)
+    {
+        if      (GlobalV::init_wfc == "atomic") this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
+        else if (GlobalV::init_wfc == "random") this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
+        else if (GlobalV::init_wfc == "nao")    this->psi_init = new psi_initializer_nao   (&(this->sf), this->pw_wfc);
+        else ModuleBase::WARNING_QUIT("ESolver_KS_LCAO::init", "for new psi initializer, init_wfc type not supported");
     }
 
     // temporary
@@ -420,6 +459,15 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
         hsolver::DiagoIterAssist<FPTYPE, Device>::SCF_ITER = iter;
         hsolver::DiagoIterAssist<FPTYPE, Device>::PW_DIAG_THR = ethr;
         hsolver::DiagoIterAssist<FPTYPE, Device>::PW_DIAG_NMAX = GlobalV::PW_DIAG_NMAX;
+        if (GlobalV::psi_initializer)
+        {
+            for(int ik = 0; ik < this->pw_wfc->nks; ik++)
+            {
+                this->psi->fix_k(ik);
+                this->psi_init->initialize(this->kspw_psi[0], ik);
+            }
+        }
+
         this->phsol->solve(this->p_hamilt, this->kspw_psi[0], this->pelec, GlobalV::KS_SOLVER);
 
         if (GlobalV::out_bandgap)

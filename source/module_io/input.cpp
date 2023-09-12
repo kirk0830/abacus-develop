@@ -287,9 +287,11 @@ void Input::Default(void)
     // potential / charge / wavefunction / energy
     //----------------------------------------------------------
     init_wfc = "atomic";
+    psi_initializer = false;
     mem_saver = 0;
     printe = 100; // must > 0
     init_chg = "atomic";
+    init_wfc = "atomic";
     chg_extrap = "atomic"; // xiaohui modify 2015-02-01
     out_freq_elec = 0;
     out_freq_ion = 0;
@@ -1159,6 +1161,10 @@ bool Input::Read(const std::string &fn)
         else if (strcmp("init_wfc", word) == 0)
         {
             read_value(ifs, init_wfc);
+        }
+        else if (strcmp("psi_initializer", word) == 0)
+        {
+            read_value(ifs, psi_initializer);
         }
         else if (strcmp("mem_saver", word) == 0)
         {
@@ -3373,7 +3379,14 @@ void Input::Check(void)
             "Input",
             "wrong 'chg_extrap=dm' is only available for local orbitals."); // xiaohui modify 2015-02-01
     }
-    if (init_wfc != "atomic" && init_wfc != "atomic+random" && init_wfc != "random" && init_wfc != "file")
+    if (
+        (init_wfc != "atomic") 
+     && (init_wfc != "random") 
+     && (init_wfc != "atomic+random")
+     && (init_wfc != "nao")
+     && (init_wfc != "nao+random")
+     && (init_wfc != "file")
+     )
     {
         ModuleBase::WARNING_QUIT("Input", "wrong init_wfc, please use 'atomic' or 'random' or 'file' ");
     }
