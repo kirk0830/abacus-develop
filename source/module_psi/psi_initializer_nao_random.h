@@ -1,3 +1,5 @@
+#ifndef PSI_INITIALIZER_NAO_RANDOM_H
+#define PSI_INITIALIZER_NAO_RANDOM_H
 #include "psi_initializer_nao.h"
 #include "psi_initializer_random.h"
 
@@ -9,3 +11,4 @@ class psi_initializer_nao_random : public psi_initializer_nao, public psi_initia
         void initialize(psi::Psi<std::complex<double>>& psi, int ik);
     private:
 };
+#endif

@@ -2,6 +2,10 @@ add_library(
     psi
     OBJECT
     psi.cpp
+    psi_initializer.cpp
+    psi_initializer_atomic.cpp
+    psi_initializer_random.cpp
+    psi_initializer_nao.cpp
 )
 
 if(ENABLE_COVERAGE)

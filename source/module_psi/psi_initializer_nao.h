@@ -1,3 +1,5 @@
+#ifndef PSI_INITIALIZER_NAO_H
+#define PSI_INITIALIZER_NAO_H
 #include "psi_initializer.h"
 
 class psi_initializer_nao : public psi_initializer
@@ -29,3 +31,4 @@ class psi_initializer_nao : public psi_initializer
         std::vector<std::string> orbital_files;
         ModuleBase::realArray ovlp_flzjlq;
 };
+#endif

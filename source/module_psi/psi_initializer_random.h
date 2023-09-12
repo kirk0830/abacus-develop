@@ -1,3 +1,6 @@
+#ifndef PSI_INITIALIZER_RANDOM_H
+#define PSI_INITIALIZER_RANDOM_H
+
 #include "psi_initializer.h"
 
 class psi_initializer_random : public psi_initializer
@@ -31,3 +34,4 @@ class psi_initializer_random : public psi_initializer
     private:
         int* ixy2is;
 };
+#endif

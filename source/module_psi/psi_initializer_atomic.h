@@ -1,3 +1,5 @@
+#ifndef PSI_INITIALIZER_ATOMIC_H
+#define PSI_INITIALIZER_ATOMIC_H
 #include "psi_initializer.h"
 #include "module_base/complexmatrix.h"
 #include "module_base/realarray.h"
@@ -6,7 +8,7 @@ class psi_initializer_atomic : public psi_initializer
 {
     public:
         psi_initializer_atomic(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in);
-        ~psi_initializer_atomic() = default;
+        ~psi_initializer_atomic();
 
         // methods
         void initialize(psi::Psi<std::complex<double>>& psi, int ik) override;
@@ -31,3 +33,4 @@ class psi_initializer_atomic : public psi_initializer
         std::vector<std::string> pseudopot_files;
         ModuleBase::realArray ovlp_pswfcjlq;
 };
+#endif

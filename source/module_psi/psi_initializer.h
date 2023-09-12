@@ -1,3 +1,5 @@
+#ifndef PSI_INITIALIZER_H
+#define PSI_INITIALIZER_H
 // three global variables definition
 #include "module_base/global_variable.h"
 #include "module_base/global_function.h"
@@ -36,6 +38,7 @@ Following methods are available:
 class psi_initializer
 {
     public:
+        psi_initializer() : sf(nullptr), pw_wfc(nullptr) { };
         psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : sf(sf_in), pw_wfc(pw_wfc_in) { };
         ~psi_initializer() { };
 
@@ -63,3 +66,4 @@ class psi_initializer
     private:
         int mem_saver = 0; // will deprecated this variable soon
 };
+#endif

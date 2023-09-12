@@ -1,3 +1,5 @@
+#ifndef PSI_INITIALIZER_ATOMIC_RANDOM_H
+#define PSI_INITIALIZER_ATOMIC_RANDOM_H
 #include "psi_initializer_atomic.h"
 #include "psi_initializer_random.h"
 
@@ -10,3 +12,4 @@ class psi_initializer_atomic_random : public psi_initializer_atomic, public psi_
     private:
 
 };
+#endif

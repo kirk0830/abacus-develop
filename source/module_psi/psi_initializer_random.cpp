@@ -1,6 +1,6 @@
 #include "psi_initializer_random.h"
 #include <mpi.h>
-#include "parallel_global.h"
+#include "module_base/parallel_global.h"
 #include "module_cell/parallel_kpoints.h"
 
 psi_initializer_random::psi_initializer_random(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
@@ -117,7 +117,7 @@ void psi_initializer_random::random_t(std::complex<FPTYPE>* psi,
         for (int iw = iw_start ;iw < iw_end;iw++)
         {   
             // get the starting memory address of iw band
-            std::complex<FPTYPE>* psi_slice = &(psi[iw * this->npwx * GlobalV::NPOL]);
+            std::complex<FPTYPE>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
             int startig = 0;
             for(int ipol = 0 ; ipol < GlobalV::NPOL ; ++ipol)
             {
@@ -144,7 +144,7 @@ void psi_initializer_random::random_t(std::complex<FPTYPE>* psi,
                     const FPTYPE gk2 = wfc_basis->getgk2(ik,ig);
                     psi_slice[ig+startig] = std::complex<FPTYPE>(rr * cos(arg), rr * sin(arg)) / FPTYPE(gk2 + 1.0);
                 }
-                startig += npwx;
+                startig += this->pw_wfc->npwk_max;
             }
         }
         delete[] stickrr;
@@ -162,7 +162,7 @@ void psi_initializer_random::random_t(std::complex<FPTYPE>* psi,
 #endif
         for (int iw = iw_start ;iw < iw_end;iw++)
         {
-            std::complex<FPTYPE>* psi_slice = &(psi[iw * this->npwx * GlobalV::NPOL]);
+            std::complex<FPTYPE>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
             for (int ig = 0; ig < ng; ig++)
             {
                 const FPTYPE rr = std::rand()/FPTYPE(RAND_MAX); //qianrui add RAND_MAX
@@ -172,11 +172,11 @@ void psi_initializer_random::random_t(std::complex<FPTYPE>* psi,
             }
             if(GlobalV::NPOL==2)
             {
-                for (int ig = this->npwx; ig < this->npwx + ng; ig++)
+                for (int ig = this->pw_wfc->npwk_max; ig < this->pw_wfc->npwk_max + ng; ig++)
                 {
                     const FPTYPE rr = std::rand()/FPTYPE(RAND_MAX);
                     const FPTYPE arg= ModuleBase::TWO_PI * std::rand()/FPTYPE(RAND_MAX);
-                    const FPTYPE gk2 = wfc_basis->getgk2(ik,ig-this->npwx);
+                    const FPTYPE gk2 = wfc_basis->getgk2(ik,ig-this->pw_wfc->npwk_max);
                     psi_slice[ig] = std::complex<FPTYPE>(rr * cos(arg), rr * sin(arg)) / FPTYPE(gk2 + 1.0);
                 }
             }
