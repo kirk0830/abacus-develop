@@ -477,7 +477,7 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
             for(int ik = 0; ik < this->pw_wfc->nks; ik++)
             {
                 this->psi->fix_k(ik);
-                this->psi_init->initialize(*(this->psi), ik);
+                this->psi_init->initialize(*(this->psi), ik); /* HERE it is the bug comes, should not directly initialize psi, but another, then convert to mitigate dimension descrepancy */
                 if(this->psi_init->get_nbands_complem() > 0)
                 {
                     std::cout<<"It is the case the number of bands to calculate larger than pswfc or nao, random functions added." << std::endl;
