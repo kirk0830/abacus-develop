@@ -10,5 +10,5 @@ ecutwfc 60
 scf_thr 1e-8
 scf_nmax 100
 init_wfc atomic
-psi_initializer 1
-nbands 9
+psi_initializer 0
+nbands 7

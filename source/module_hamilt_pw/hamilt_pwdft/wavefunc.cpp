@@ -276,6 +276,7 @@ void diago_PAO_in_pw_k2(const int &ik,
 
 	const int nbasis = wvf.get_nbasis();
 	const int nbands = wvf.get_nbands();
+	std::cout<<__FILE__<<__LINE__<<"nbands = "<<nbands<<std::endl;
 	const int current_nbasis = wfc_basis->npwk[ik];
 
 	//special case here! use Psi(k-1) for the initialization of Psi(k)
@@ -315,6 +316,7 @@ void diago_PAO_in_pw_k2(const int &ik,
 	else if(p_wf->init_wfc.substr(0,6)=="atomic")
 	{
 		ModuleBase::ComplexMatrix wfcatom(starting_nw, nbasis);//added by zhengdy-soc
+		std::cout<<__FILE__<<__LINE__<<"starting_nw = "<<starting_nw<<std::endl;
 		if(GlobalV::test_wf)ModuleBase::GlobalFunc::OUT(GlobalV::ofs_running, "starting_nw", starting_nw);
 
         p_wf->atomic_wfc(ik,
@@ -343,6 +345,10 @@ void diago_PAO_in_pw_k2(const int &ik,
 		{
 			if(phm_in!= nullptr)
 			{
+				std::cout<<__FILE__<<__LINE__<<" wfcatom.nr = "<<wfcatom.nr<<std::endl;
+				std::cout<<__FILE__<<__LINE__<<" wfcatom.nc = "<<wfcatom.nc<<std::endl;
+				std::cout<<__FILE__<<__LINE__<<" wvf.get_nbands = "<<wvf.get_nbands()<<std::endl;
+				std::cout<<__FILE__<<__LINE__<<" wvf.get_nbands = "<<wvf.get_nbasis()<<std::endl;
 				hsolver::DiagoIterAssist<double>::diagH_subspace_init(phm_in,
 							wfcatom.c,
 							wfcatom.nr,
@@ -499,6 +505,7 @@ void diago_PAO_in_pw_k2(const psi::DEVICE_GPU *ctx,
 
 	const int nbasis = wvf.get_nbasis();
 	const int nbands = wvf.get_nbands();
+	std::cout<<__FILE__<<__LINE__<<"nbands = "<<nbands<<std::endl;
 	const int current_nbasis = wfc_basis->npwk[ik];
 
 	ModuleBase::ComplexMatrix wfcatom(starting_nw, nbasis);//added by zhengdy-soc
