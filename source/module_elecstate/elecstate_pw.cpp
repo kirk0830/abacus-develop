@@ -69,7 +69,6 @@ void ElecStatePW<FPTYPE, Device>::psiToRho(const psi::Psi<std::complex<FPTYPE>, 
         this->init_rho_data();
     }
     this->calculate_weights();
-
     this->calEBand();
 
     for(int is=0; is<GlobalV::NSPIN; is++)
@@ -83,7 +82,6 @@ void ElecStatePW<FPTYPE, Device>::psiToRho(const psi::Psi<std::complex<FPTYPE>, 
             setmem_var_op()(this->ctx, this->kin_r[is], 0,  this->charge->nrxx);
         }
 	}
-
     for (int ik = 0; ik < psi.get_nk(); ++ik)
     {
         psi.fix_k(ik);
@@ -134,7 +132,6 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
     // static std::vector<std::complex<double>> wfcr_another_spin;
     // if (GlobalV::NSPIN == 4)
     //     wfcr_another_spin.resize(this->charge->nrxx);
-
     if (!this->init_rho) {
         this->init_rho_data();
     }
@@ -145,7 +142,8 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
     {
         current_spin = this->klist->isk[ik];
     }
-    int nbands = psi.get_nbands();
+    int nbands = (GlobalV::psi_initializer)? GlobalV::NBANDS: psi.get_nbands();
+    std::cout<<__FILE__<<__LINE__<<std::endl;
     const double threshold = ModuleBase::threshold_wg * this->wg(ik, 0);
     //  here we compute the band energy: the sum of the eigenvalues
     if (GlobalV::NSPIN == 4)
@@ -173,6 +171,9 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
     }
     else
     {
+        std::cout << "Have you decided how to handle with cases where nbands != nlocal or npswfc?" << std::endl;
+        std::cout<<__FILE__<<__LINE__<<std::endl;
+        std::cout << "nbands in for loop is: " << nbands << ", while wg has dimension: (" << wg.nr << "*" << wg.nc << ")." << std::endl;
         for (int ibnd = 0; ibnd < nbands; ibnd++)
         {
             ///
@@ -183,7 +184,6 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
             }
 
             this->basis->recip_to_real(this->ctx, &psi(ibnd,0), this->wfcr, ik);
-
             const auto w1 = static_cast<FPTYPE>(this->wg(ik, ibnd) / get_ucell_omega());
 
             if (w1 != 0.0)
@@ -216,6 +216,7 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
                 }
             }
         }
+        std::cout<<__FILE__<<__LINE__<<std::endl;
     }
 }
 

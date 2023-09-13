@@ -143,26 +143,13 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
     ModuleBase::GlobalFunc::DONE(GlobalV::ofs_running, "NON-LOCAL POTENTIAL");
 
     GlobalC::ppcell.cal_effective_D();
-
+    std::cout << __FILE__ << __LINE__ << std::endl;
     if (this->psi != nullptr)
         delete this->psi;
     if (GlobalV::psi_initializer)
     {
+        std::cout << __FILE__ << __LINE__ << std::endl;
         this->psi = this->psi_init->allocate();
-        if (GlobalV::init_wfc.substr(0,6) == "atomic")
-        {
-            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
-            this->psi_init->cal_ovlp_pswfcjlq();
-        }
-        else if (GlobalV::init_wfc == "random")
-        {
-            //do nothing here
-        }
-        else if (GlobalV::init_wfc.substr(0,3) == "nao")
-        {
-            this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
-            this->psi_init->cal_ovlp_flzjlq();
-        }
     }
     else
     {
@@ -225,13 +212,31 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
                                                     &(this->pelec->f_en.etxc),
                                                     &(this->pelec->f_en.vtxc));
     }
-
+    std::cout << __FILE__ << __LINE__ << std::endl;
     if (GlobalV::psi_initializer)
     {
-        if      (GlobalV::init_wfc == "atomic") this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
-        else if (GlobalV::init_wfc == "random") this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
-        else if (GlobalV::init_wfc == "nao")    this->psi_init = new psi_initializer_nao   (&(this->sf), this->pw_wfc);
+        if(GlobalV::init_wfc == "atomic")
+        {
+            std::cout << __FILE__ << __LINE__ << std::endl;
+            this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
+            std::cout << __FILE__ << __LINE__ << std::endl;
+            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            std::cout << __FILE__ << __LINE__ << std::endl;
+            this->psi_init->cal_ovlp_pswfcjlq();
+            std::cout << __FILE__ << __LINE__ << std::endl;
+        }
+        else if(GlobalV::init_wfc == "random")
+        {
+            this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
+        }
+        else if(GlobalV::init_wfc == "nao")
+        {
+            this->psi_init = new psi_initializer_nao(&(this->sf), this->pw_wfc);
+            this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
+            this->psi_init->cal_ovlp_flzjlq();
+        }
         else ModuleBase::WARNING_QUIT("ESolver_KS_LCAO::init", "for new psi initializer, init_wfc type not supported");
+        std::cout << __FILE__ << __LINE__ << std::endl;
     }
 
     // temporary
@@ -472,12 +477,15 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
             for(int ik = 0; ik < this->pw_wfc->nks; ik++)
             {
                 this->psi->fix_k(ik);
-                this->psi_init->initialize(this->kspw_psi[0], ik);
+                this->psi_init->initialize(*(this->psi), ik);
+                if(this->psi_init->get_nbands_complem() > 0)
+                {
+                    std::cout<<"It is the case the number of bands to calculate larger than pswfc or nao, random functions added." << std::endl;
+                }
             }
         }
-
+        std::cout<<__FILE__<<__LINE__<<std::endl;
         this->phsol->solve(this->p_hamilt, this->kspw_psi[0], this->pelec, GlobalV::KS_SOLVER);
-
         if (GlobalV::out_bandgap)
         {
             if (!GlobalV::TWO_EFERMI)
@@ -494,7 +502,6 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
     {
         ModuleBase::WARNING_QUIT("ESolver_KS_PW", "HSolver has not been initialed!");
     }
-
     // add exx
 #ifdef __LCAO
 #ifdef __EXX
@@ -510,7 +517,6 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
     {
         srho.begin(is, *(this->pelec->charge), this->pw_rho, GlobalC::Pgrid, this->symm);
     }
-
     // compute magnetization, only for LSDA(spin==2)
     GlobalC::ucell.magnet.compute_magnetization(this->pelec->charge->nrxx,
                                                 this->pelec->charge->nxyz,
@@ -519,7 +525,6 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
     // deband is calculated from "output" charge density calculated
     // in sum_band
     // need 'rho(out)' and 'vr (v_h(in) and v_xc(in))'
-
     this->pelec->f_en.deband = this->pelec->cal_delta_eband();
     // if (LOCAL_BASIS) xiaohui modify 2013-09-02
 }

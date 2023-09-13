@@ -252,6 +252,7 @@ T& Psi<T, Device>::operator()(const int ik, const int ibands, const int ibasis) 
 
 template <typename T, typename Device> T& Psi<T, Device>::operator()(const int ibands, const int ibasis) const
 {
+    //std::cout << "psi::Psi::operator(): ibands = " << ibands << ", ibasis = " << ibasis << std::endl;
     assert(this->current_b == 0);
     assert(ibands >= 0 && ibands < this->nbands);
     assert(ibasis >= 0 && ibasis < this->nbasis);

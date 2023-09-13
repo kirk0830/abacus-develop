@@ -1,9 +1,8 @@
 #ifndef PSI_INITIALIZER_NAO_RANDOM_H
 #define PSI_INITIALIZER_NAO_RANDOM_H
 #include "psi_initializer_nao.h"
-#include "psi_initializer_random.h"
 
-class psi_initializer_nao_random : public psi_initializer_nao, public psi_initializer_random
+class psi_initializer_nao_random : public psi_initializer_nao
 {
     public:
         psi_initializer_nao_random(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in);

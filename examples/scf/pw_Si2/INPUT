@@ -1,9 +1,14 @@
 INPUT_PARAMETERS
 #Parameters	(General)
-pseudo_dir		../../../tests/PP_ORB	
-symmetry                1	
+#pseudo_dir ../../../tests/PP_ORB	
+pseudo_dir .
+orbital_dir ../../../tests/PP_ORB
+symmetry 1	
 #Parameters (Accuracy)
-basis_type		pw
-ecutwfc			60
-scf_thr                 1e-8
-scf_nmax		100
+basis_type pw
+ecutwfc 60
+scf_thr 1e-8
+scf_nmax 100
+init_wfc atomic
+psi_initializer 1
+nbands 9

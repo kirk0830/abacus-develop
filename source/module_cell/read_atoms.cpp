@@ -89,7 +89,14 @@ int UnitCell::read_atom_species(std::ifstream &ifa, std::ofstream &ofs_running)
 		}
 	}
 #ifdef __LCAO
-	if(GlobalV::BASIS_TYPE=="lcao" || GlobalV::BASIS_TYPE=="lcao_in_pw")
+	if(
+		(GlobalV::BASIS_TYPE == "lcao")
+	  ||(
+		  (GlobalV::BASIS_TYPE == "pw")
+		&&(GlobalV::psi_initializer)
+		&&(GlobalV::init_wfc.substr(0, 3) == "nao")
+		)
+	)
 	{
 		if( ModuleBase::GlobalFunc::SCAN_BEGIN(ifa, "NUMERICAL_ORBITAL") )
 		{
@@ -438,7 +445,14 @@ bool UnitCell::read_atom_positions(std::ifstream &ifpos, std::ofstream &ofs_runn
 			// int* atoms[it].l_nchi;
 			//===========================================
 #ifdef __LCAO
-			if (GlobalV::BASIS_TYPE == "lcao" || GlobalV::BASIS_TYPE == "lcao_in_pw")
+			if (
+				(GlobalV::BASIS_TYPE == "lcao")
+			  ||(
+					(GlobalV::BASIS_TYPE == "pw")
+				  &&(GlobalV::psi_initializer) 
+				  &&(GlobalV::init_wfc.substr(0,3) == "nao")
+				)
+				)
 			{
                 std::string orbital_file = GlobalV::global_orbital_dir + orbital_fn[it];
 				this->read_orb_file(it, orbital_file, ofs_running, &(atoms[it]));
@@ -450,7 +464,6 @@ bool UnitCell::read_atom_positions(std::ifstream &ifpos, std::ofstream &ofs_runn
 #endif
 			{
 				this->atoms[it].nw = 0;
-
 				this->atoms[it].nwl = 2;
 				//std::cout << lmaxmax << std::endl;
 				if ( lmaxmax != 2 )
@@ -1375,24 +1388,6 @@ void UnitCell::read_nao_flz(int it, std::string &orb_file, std::ofstream &ofs_ru
 				}
 			}
 			in.close();
-			flatten_ichi++;
-		}
-	}
-	std::cout<<"TEST: sucessfully read flz data from numerical orbital files." << std::endl;
-	std::cout<<"      numerical orbitals information:" << std::endl;
-	std::cout<<"      it = " << it << std::endl;
-	std::cout << "      nwl = " << atom->nwl << std::endl;
-	flatten_ichi = 0;
-	for (int l = 0; l < atom->nwl+1; l++)
-	{
-		std::cout << "      l = " << l << std::endl;
-		std::cout << "      l_nchi = " << atom->l_nchi[l] << std::endl;
-		for (int izeta = 0; izeta < atom->l_nchi[l]; izeta++)
-		{
-			std::cout << "      izeta = " << izeta << std::endl;
-			std::cout << "      n_rgrid = " << atom->n_rgrid[flatten_ichi] << std::endl;
-			std::cout << "      rgrid[0] = " << atom->rgrid[flatten_ichi][0] << std::endl;
-			std::cout << "      flz[0] = " << atom->flz[flatten_ichi][0] << std::endl;
 			flatten_ichi++;
 		}
 	}

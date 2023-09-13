@@ -23,7 +23,7 @@ class psi_initializer_atomic : public psi_initializer
         /// @return the phase factor
         std::complex<double> phase_factor(double arg, int mode = 0);
         /// @brief calculate the overlap between pseudo atomic wavefunctions and planewave basis
-        void calc_ovlp_pswfcjlq();
+        void cal_ovlp_pswfcjlq();
 
         // historically left functions
         // getters

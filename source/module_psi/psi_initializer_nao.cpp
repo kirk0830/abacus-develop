@@ -4,6 +4,7 @@
 
 psi_initializer_nao::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
 {
+	this->set_method("nao");
     // find correct dimension for ovlp_flzjlq
     int dim1 = GlobalC::ucell.ntype;
     int dim2 = 0; // dim2 should be the maximum number of zeta for each atomtype
@@ -31,14 +32,17 @@ psi_initializer_nao::~psi_initializer_nao()
 
 void psi_initializer_nao::set_orbital_files(std::string* orbital_files)
 {
+	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 	for (int itype = 0; itype < GlobalC::ucell.ntype; itype++)
     {
 		this->orbital_files.push_back(orbital_files[itype]);
 	}
+	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 }
 
 void psi_initializer_nao::cal_ovlp_flzjlq()
 {
+	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
     this->ovlp_flzjlq.zero_out();
 	for(int it=0; it<GlobalC::ucell.ntype; it++)
 	{
@@ -92,10 +96,12 @@ void psi_initializer_nao::cal_ovlp_flzjlq()
 			ofs.close();
 		}
 	}
+	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
 }
 
 void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik)
 {
+	ModuleBase::timer::tick("psi_initializer_nao", "initialize");
 	assert(ik>=0);
 	const int npw = this->pw_wfc->npwk[ik];
 	const int total_lm = ( GlobalC::ucell.lmax + 1) * ( GlobalC::ucell.lmax + 1);
@@ -225,18 +231,16 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 								//gamman = -GlobalC::ucell.magnet.angle2_[it] + 0.5*ModuleBase::PI;
 								alpha = GlobalC::ucell.atoms[it].angle1[ia];
 								gamman = -GlobalC::ucell.atoms[it].angle2[ia] + 0.5*ModuleBase::PI;
-								for(int m = 0;m<2*L+1;m++)
+								for(int m = 0; m < 2*L+1; m++)
 								{
 									const int lm = L*L +m;
-                                    if (ibasis + 2 * L + 1 > GlobalC::ucell.natomwfc)
-                                        ModuleBase::WARNING_QUIT("this->wf.atomic_wfc()", "error: too many wfcs");
                                     for (int ig = 0; ig < npw; ig++)
                                     {
                                         aux[ig] = sk[ig] * ylm(lm,ig) * ovlp_flzjlg[ig];
                                     }
                                     //rotate function
 									//first, rotation with angle alpha around(OX)
-									for(int ig = 0;ig<npw;ig++)
+									for(int ig = 0; ig < npw; ig++)
 									{
 										fup = cos(0.5*alpha) * aux[ig];
 										fdown = ModuleBase::IMAG_UNIT * sin(0.5* alpha) * aux[ig];
@@ -276,9 +280,14 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 			delete[] sk;
 		} // end for ia
 	} // end for it
-	assert(ibasis == GlobalV::NLOCAL);
 	delete[] ovlp_flzjlg;
 	delete[] aux;
 	delete[] chiaux;
 	delete[] gk;
+	/* complement the rest of bands if there are */
+	if(this->get_nbands_complem() > 0)
+	{
+		this->random_t(psi.get_pointer(), ibasis, psi.get_nbands(), ik, this->pw_wfc);
+	}
+	ModuleBase::timer::tick("psi_initializer_nao", "initialize");
 }
