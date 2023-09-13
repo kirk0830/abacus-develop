@@ -80,9 +80,9 @@ namespace ModuleESolver
         //calculate conductivities from j-j correlation function
         void calcondw(const int nt,const double dt, const double fwhmin, const double wcut, const double dw_in, double *ct11, double *ct12, double *ct22);
 
-
+        void initialize_psi();
     private:
-        psi_initializer* psi_init = nullptr;
+        psi_initializer<FPTYPE>* psi_init = nullptr;
         Device * ctx = {};
         psi::AbacusDevice_t device = {};
         psi::Psi<std::complex<FPTYPE>, Device>* kspw_psi = nullptr;

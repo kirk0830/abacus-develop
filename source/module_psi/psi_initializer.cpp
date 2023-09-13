@@ -1,13 +1,22 @@
 #include "psi_initializer.h"
 #include "module_base/memory.h"
 
-psi_initializer::psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in): sf(sf_in), pw_wfc(pw_wfc_in)
+template <typename FPTYPE>
+psi_initializer<FPTYPE>::psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in): sf(sf_in), pw_wfc(pw_wfc_in)
 {
     this->ixy2is = new int[this->pw_wfc->fftnxy];
     this->pw_wfc->getfftixy2is(this->ixy2is);
 }
 
-int psi_initializer::get_starting_nw() const
+template <typename FPTYPE>
+psi_initializer<FPTYPE>::~psi_initializer()
+{
+    delete[] this->ixy2is;
+    if (this->psig != nullptr) delete this->psig;
+}
+
+template <typename FPTYPE>
+int psi_initializer<FPTYPE>::get_starting_nw() const
 {
     ModuleBase::timer::tick("psi_initializer", "get_starting_nw");
     if (GlobalV::init_wfc == "file")
@@ -47,7 +56,8 @@ int psi_initializer::get_starting_nw() const
     ModuleBase::timer::tick("psi_initializer", "get_starting_nw");
 }
 
-psi::Psi<std::complex<double>>* psi_initializer::allocate()
+template <typename FPTYPE>
+psi::Psi<std::complex<double>>* psi_initializer<FPTYPE>::allocate()
 {
     ModuleBase::timer::tick("psi_initializer", "allocate");
 	int prefactor = 1;
@@ -83,6 +93,11 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
     psi::Psi<std::complex<double>>* psi_out = nullptr;
     psi_out = new psi::Psi<std::complex<double>>(
         nkpts_actual, 
+            GlobalV::NBANDS, // because no matter what, the wavefunction finally needed has GlobalV::NBANDS bands
+                nbasis_actual, 
+                    this->pw_wfc->npwk);
+    this->psig = new psi::Psi<std::complex<FPTYPE>>(
+        nkpts_actual, 
             nbands_actual, 
                 nbasis_actual, 
                     this->pw_wfc->npwk);
@@ -101,7 +116,8 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
     return psi_out;
 }
 
-void psi_initializer::print_status(psi::Psi<std::complex<double>>& psi) const
+template <typename FPTYPE>
+void psi_initializer<FPTYPE>::print_status(psi::Psi<std::complex<double>>& psi) const
 {
     std::cout << "Current method: " << this->method << std::endl;
     std::cout << "Psi status:" << std::endl;
@@ -111,7 +127,8 @@ void psi_initializer::print_status(psi::Psi<std::complex<double>>& psi) const
 }
 
 #ifdef __MPI
-void psi_initializer::stick_to_pool(float* stick, const int& ir, float* out, const ModulePW::PW_Basis_K* wfc_basis) const
+template <typename FPTYPE>
+void psi_initializer<FPTYPE>::stick_to_pool(float* stick, const int& ir, float* out, const ModulePW::PW_Basis_K* wfc_basis) const
 {	
     ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
 	MPI_Status ierror;
@@ -141,7 +158,8 @@ void psi_initializer::stick_to_pool(float* stick, const int& ir, float* out, con
     ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
 	return;	
 }
-void psi_initializer::stick_to_pool(double* stick, const int& ir, double* out, const ModulePW::PW_Basis_K* wfc_basis) const
+template <typename FPTYPE>
+void psi_initializer<FPTYPE>::stick_to_pool(double* stick, const int& ir, double* out, const ModulePW::PW_Basis_K* wfc_basis) const
 {	
     ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
 	MPI_Status ierror;
@@ -173,5 +191,3 @@ void psi_initializer::stick_to_pool(double* stick, const int& ir, double* out, c
     ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
 }
 #endif
-template<> void psi_initializer::random_t<double>(std::complex<double>* psi, const int iw_start, const int iw_end, const int ik, const ModulePW::PW_Basis_K* wfc_basis);
-template<> void psi_initializer::random_t<float>(std::complex<float>* psi, const int iw_start, const int iw_end, const int ik, const ModulePW::PW_Basis_K* wfc_basis);

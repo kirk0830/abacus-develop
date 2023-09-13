@@ -43,12 +43,13 @@ Following methods are available:
     5. nao+random: mix 'nao' with some random numbers to initialize psi
                    not implemented yet
 */
+template<typename FPTYPE>
 class psi_initializer
 {
     public:
         psi_initializer() : sf(nullptr), pw_wfc(nullptr) { };
         psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in);
-        ~psi_initializer() { delete[] this->ixy2is; };
+        ~psi_initializer();
 
         /// @brief calculate number of wavefunctions to be initialized
         /// @return if GlobalV::init_wfc has valid value, return the number of wavefunctions to be initialized, otherwise throw an error
@@ -58,10 +59,10 @@ class psi_initializer
         /// @return pointer to psi, memory allocated
         psi::Psi<std::complex<double>>* allocate();
 
-        /// @brief initialize planewave represented psi
+        /// @brief calculate psi in planewave representation
         /// @param psi psi
         /// @param ik index of kpoint
-        virtual void initialize(psi::Psi<std::complex<double>>& psi, int ik) = 0;
+        virtual psi::Psi<std::complex<FPTYPE>>* cal_psig(int ik) = 0;
 
         /// @brief initialize planewave represented psi after change of cell volume
         /// @note due to wanf2, the Wannier function in pw representation, is not used anymore, this function is not needed anymore
@@ -99,7 +100,7 @@ class psi_initializer
         void stick_to_pool(float* stick, const int& ir, float* out, const ModulePW::PW_Basis_K* wfc_basis) const;
         void stick_to_pool(double* stick, const int& ir, double* out, const ModulePW::PW_Basis_K* wfc_basis) const;
         #endif
-        template <typename FPTYPE>
+
         void random_t(std::complex<FPTYPE>* psi, const int iw_start, const int iw_end, const int ik, const ModulePW::PW_Basis_K* wfc_basis)
         {
             ModuleBase::timer::tick("psi_initializer", "random_t");
@@ -163,7 +164,7 @@ class psi_initializer
                 srand(unsigned(INPUT.pw_seed + ik));
             }
         #endif
-                for (int iw = iw_start ;iw < iw_end;iw++)
+                for (int iw = iw_start ;iw < iw_end; iw++)
                 {
                     std::complex<FPTYPE>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
                     for (int ig = 0; ig < ng; ig++)
@@ -201,15 +202,21 @@ class psi_initializer
         virtual void cal_ovlp_flzjlq() { ModuleBase::WARNING_QUIT("psi_initializer::cal_ovlp_flzjlq", "Polymorphism error"); }
         // atomic+random
         // nao+random
+
+        // member variables
+        psi::Psi<std::complex<FPTYPE>>* psig;
+
         Structure_Factor* sf;
         ModulePW::PW_Basis_K* pw_wfc; // I dont think it should appear here. It should, only be modified by ESolver object.
 
         ModuleBase::SphericalBesselTransformer sbt; // useful for atomic-like methods
     private:
+        
         int mem_saver = 0; // will deprecated this variable soon
         std::string method = "none";
 
         int nbands_complem = 0;
         int* ixy2is;
+
 };
 #endif

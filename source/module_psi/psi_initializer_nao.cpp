@@ -2,7 +2,8 @@
 #include <sstream>
 #include <fstream>
 
-psi_initializer_nao::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
+template<typename FPTYPE>
+psi_initializer_nao<FPTYPE>::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer<FPTYPE>(sf_in, pw_wfc_in)
 {
 	this->set_method("nao");
     // find correct dimension for ovlp_flzjlq
@@ -22,7 +23,8 @@ psi_initializer_nao::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_B
     this->ovlp_flzjlq.create(dim1, dim2, dim3);
     this->ovlp_flzjlq.zero_out();
 }
-psi_initializer_nao::~psi_initializer_nao()
+template<typename FPTYPE>
+psi_initializer_nao<FPTYPE>::~psi_initializer_nao()
 {
     if (this->sf != nullptr)
     {
@@ -30,7 +32,8 @@ psi_initializer_nao::~psi_initializer_nao()
     }
 }
 
-void psi_initializer_nao::set_orbital_files(std::string* orbital_files)
+template<typename FPTYPE>
+void psi_initializer_nao<FPTYPE>::set_orbital_files(std::string* orbital_files)
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 	for (int itype = 0; itype < GlobalC::ucell.ntype; itype++)
@@ -40,7 +43,8 @@ void psi_initializer_nao::set_orbital_files(std::string* orbital_files)
 	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 }
 
-void psi_initializer_nao::cal_ovlp_flzjlq()
+template<typename FPTYPE>
+void psi_initializer_nao<FPTYPE>::cal_ovlp_flzjlq()
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
     this->ovlp_flzjlq.zero_out();
@@ -99,10 +103,12 @@ void psi_initializer_nao::cal_ovlp_flzjlq()
 	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
 }
 
-void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik)
+template<typename FPTYPE>
+psi::Psi<std::complex<FPTYPE>>* psi_initializer_nao<FPTYPE>::cal_psig(int ik)
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "initialize");
 	assert(ik>=0);
+	this->psig->fix_k(ik);
 	const int npw = this->pw_wfc->npwk[ik];
 	const int total_lm = ( GlobalC::ucell.lmax + 1) * ( GlobalC::ucell.lmax + 1);
 	ModuleBase::matrix ylm(total_lm, npw);
@@ -158,10 +164,10 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 										for(int ig=0; ig<npw; ig++)
 										{
 											//if(is_N==0)
-											psi(ibasis, ig) =
+											(*(this->psig))(ibasis, ig) =
 											lphase * sk[ig] * ylm(lm, ig) * ovlp_flzjlg[ig];
 											//else
-                                            psi(ibasis + 1, ig + this->pw_wfc->npwk_max)
+                                            (*(this->psig))(ibasis + 1, ig + this->pw_wfc->npwk_max)
                                                 = lphase * sk[ig] * ylm(lm, ig) * ovlp_flzjlg[ig];
                                         }
                                         ibasis += 2;
@@ -208,14 +214,14 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 											fdown = ModuleBase::IMAG_UNIT * sin(0.5* alpha) * aux[ig];
 											//build the orthogonal wfc
 											//first rotation with angle (alpha + ModuleBase::PI) around (OX)
-											psi(ibasis,ig) = (cos(0.5 * gamma) + ModuleBase::IMAG_UNIT * sin(0.5*gamma)) * fup;
-                                            psi(ibasis, ig + this->pw_wfc->npwk_max)
+											(*(this->psig))(ibasis,ig) = (cos(0.5 * gamma) + ModuleBase::IMAG_UNIT * sin(0.5*gamma)) * fup;
+                                            (*(this->psig))(ibasis, ig + this->pw_wfc->npwk_max)
                                                 = (cos(0.5 * gamma) - ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fdown;
                                             // second rotation with angle gamma around(OZ)
                                             fup = cos(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
                                             fdown = ModuleBase::IMAG_UNIT * sin(0.5 * (alpha + ModuleBase::PI))*aux[ig];
-											psi(ibasis+2*L+1,ig) = (cos(0.5*gamma) + ModuleBase::IMAG_UNIT*sin(0.5*gamma))*fup;
-                                            psi(ibasis + 2 * L + 1, ig + this->pw_wfc->npwk_max)
+											(*(this->psig))(ibasis+2*L+1,ig) = (cos(0.5*gamma) + ModuleBase::IMAG_UNIT*sin(0.5*gamma))*fup;
+                                            (*(this->psig))(ibasis + 2 * L + 1, ig + this->pw_wfc->npwk_max)
                                                 = (cos(0.5 * gamma) - ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fdown;
                                         }
                                         ibasis++;
@@ -246,14 +252,14 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 										fdown = ModuleBase::IMAG_UNIT * sin(0.5* alpha) * aux[ig];
 										//build the orthogonal wfc
 										//first rotation with angle(alpha+ModuleBase::PI) around(OX)
-										psi(ibasis,ig) = (cos(0.5 * gamman) + ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fup;
-                                        psi(ibasis, ig + this->pw_wfc->npwk_max)
+										(*(this->psig))(ibasis,ig) = (cos(0.5 * gamman) + ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fup;
+                                        (*(this->psig))(ibasis, ig + this->pw_wfc->npwk_max)
                                             = (cos(0.5 * gamman) - ModuleBase::IMAG_UNIT * sin(0.5 * gamman)) * fdown;
                                         // second rotation with angle gamma around(OZ)
                                         fup = cos(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
                                         fdown = ModuleBase::IMAG_UNIT * sin(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
-										psi(ibasis+2*L+1,ig) = (cos(0.5*gamman) + ModuleBase::IMAG_UNIT*sin(0.5*gamman))*fup;
-                                        psi(ibasis + 2 * L + 1, ig + this->pw_wfc->npwk_max)
+										(*(this->psig))(ibasis+2*L+1,ig) = (cos(0.5*gamman) + ModuleBase::IMAG_UNIT*sin(0.5*gamman))*fup;
+                                        (*(this->psig))(ibasis + 2 * L + 1, ig + this->pw_wfc->npwk_max)
                                             = (cos(0.5 * gamman) - ModuleBase::IMAG_UNIT * sin(0.5 * gamman)) * fdown;
                                     } // end ig
                                     ibasis++;
@@ -268,7 +274,7 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 							const int lm = L*L+m;
 							for(int ig=0; ig<npw; ig++)
 							{
-								psi(ibasis, ig) =
+								(*(this->psig))(ibasis, ig) =
 								lphase * sk[ig] * ylm(lm, ig) * ovlp_flzjlg[ig];
 							}
 							++ibasis;
@@ -287,7 +293,8 @@ void psi_initializer_nao::initialize(psi::Psi<std::complex<double>>& psi, int ik
 	/* complement the rest of bands if there are */
 	if(this->get_nbands_complem() > 0)
 	{
-		this->random_t(psi.get_pointer(), ibasis, psi.get_nbands(), ik, this->pw_wfc);
+		this->random_t(this->psig->get_pointer(), ibasis, this->psig->get_nbands(), ik, this->pw_wfc);
 	}
 	ModuleBase::timer::tick("psi_initializer_nao", "initialize");
+	return this->psig;
 }

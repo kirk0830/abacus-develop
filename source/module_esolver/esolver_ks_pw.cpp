@@ -143,12 +143,12 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
     ModuleBase::GlobalFunc::DONE(GlobalV::ofs_running, "NON-LOCAL POTENTIAL");
 
     GlobalC::ppcell.cal_effective_D();
-    std::cout << __FILE__ << __LINE__ << std::endl;
+
     if (this->psi != nullptr)
         delete this->psi;
     if (GlobalV::psi_initializer)
     {
-        std::cout << __FILE__ << __LINE__ << std::endl;
+        delete this->psi_init->psig;
         this->psi = this->psi_init->allocate();
     }
     else
@@ -212,31 +212,27 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
                                                     &(this->pelec->f_en.etxc),
                                                     &(this->pelec->f_en.vtxc));
     }
-    std::cout << __FILE__ << __LINE__ << std::endl;
     if (GlobalV::psi_initializer)
     {
         if(GlobalV::init_wfc == "atomic")
         {
-            std::cout << __FILE__ << __LINE__ << std::endl;
-            this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
-            std::cout << __FILE__ << __LINE__ << std::endl;
+            this->psi_init = new psi_initializer_atomic<FPTYPE>(&(this->sf), this->pw_wfc);
+            // there are things only need to calculate once
             this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
-            std::cout << __FILE__ << __LINE__ << std::endl;
             this->psi_init->cal_ovlp_pswfcjlq();
-            std::cout << __FILE__ << __LINE__ << std::endl;
         }
         else if(GlobalV::init_wfc == "random")
         {
-            this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
+            this->psi_init = new psi_initializer_random<FPTYPE>(&(this->sf), this->pw_wfc);
         }
         else if(GlobalV::init_wfc == "nao")
         {
-            this->psi_init = new psi_initializer_nao(&(this->sf), this->pw_wfc);
+            this->psi_init = new psi_initializer_nao<FPTYPE>(&(this->sf), this->pw_wfc);
+            // there are things only need to calculate once
             this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
             this->psi_init->cal_ovlp_flzjlq();
         }
         else ModuleBase::WARNING_QUIT("ESolver_KS_LCAO::init", "for new psi initializer, init_wfc type not supported");
-        std::cout << __FILE__ << __LINE__ << std::endl;
     }
 
     // temporary
@@ -447,6 +443,52 @@ void ESolver_KS_PW<FPTYPE, Device>::eachiterinit(const int istep, const int iter
         this->pelec->charge->save_rho_before_sum_band();
     }
 }
+template <typename FPTYPE, typename Device>
+void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
+{
+    if (GlobalV::psi_initializer)
+    {
+        for (int ik = 0; ik < this->pw_wfc->nks; ik++)
+        {
+            this->psi->fix_k(ik);
+            psi::Psi<std::complex<FPTYPE>>* psig = this->psi_init->cal_psig(ik);
+            std::vector<FPTYPE> etatom(psig->get_nbands(), 0.0);
+            if (this->psi_init->get_method() != "random")
+            {
+                if (GlobalV::KS_SOLVER == "cg")
+                {
+                    hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace_init(
+                        this->p_hamilt,
+                        psig->get_pointer(), psig->get_nbands(), psig->get_nbasis(),
+                        *(this->psi), etatom.data()
+                    );
+                    continue;
+                }
+                // else the case is davidson
+            }
+            else
+            {
+                if (GlobalV::KS_SOLVER == "cg")
+                {
+                    hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace_init(
+                        this->p_hamilt,
+                        this->psi, this->psi, etatom.data()
+                    );
+                    continue;
+                }
+                // else the case is davidson
+            }
+            // for davidson, we just copy the wavefunction (partially)
+            for (int iband = 0; iband < this->psi->get_nbands(); iband++)
+            {
+                for (int ibasis = 0; ibasis < this->psi->get_nbasis(); ibasis++)
+                {
+                    (*(this->psi))(iband, ibasis) = (*psig)(iband, ibasis);
+                }
+            }
+        }
+    }
+}
 
 // Temporary, it should be replaced by hsolver later.
 template <typename FPTYPE, typename Device>
@@ -474,17 +516,8 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
         hsolver::DiagoIterAssist<FPTYPE, Device>::PW_DIAG_NMAX = GlobalV::PW_DIAG_NMAX;
         if (GlobalV::psi_initializer)
         {
-            for(int ik = 0; ik < this->pw_wfc->nks; ik++)
-            {
-                this->psi->fix_k(ik);
-                this->psi_init->initialize(*(this->psi), ik); /* HERE it is the bug comes, should not directly initialize psi, but another, then convert to mitigate dimension descrepancy */
-                if(this->psi_init->get_nbands_complem() > 0)
-                {
-                    std::cout<<"It is the case the number of bands to calculate larger than pswfc or nao, random functions added." << std::endl;
-                }
-            }
+            this->initialize_psi();
         }
-        std::cout<<__FILE__<<__LINE__<<std::endl;
         this->phsol->solve(this->p_hamilt, this->kspw_psi[0], this->pelec, GlobalV::KS_SOLVER);
         if (GlobalV::out_bandgap)
         {

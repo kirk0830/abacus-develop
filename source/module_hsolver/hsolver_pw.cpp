@@ -320,7 +320,7 @@ void HSolverPW<FPTYPE, Device>::updatePsiK(hamilt::Hamilt<FPTYPE, Device>* pHami
     psi.fix_k(ik);
     if(GlobalV::psi_initializer) // new psi initialization method interface
     {
-        this->atomwise_precondition(pHamilt, psi);
+        // do nothing here
     }
     else if(!this->initialed_psi)
     {
