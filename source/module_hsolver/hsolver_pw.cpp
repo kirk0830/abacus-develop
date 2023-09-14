@@ -159,15 +159,12 @@ void HSolverPW<FPTYPE, Device>::solve(hamilt::Hamilt<FPTYPE, Device>* pHamilt,
             GlobalC::paw_cell.get_vkb();
         }
 #endif
-std::cout<<__FILE__<<__LINE__<<std::endl;
         this->updatePsiK(pHamilt, psi, ik);
-std::cout<<__FILE__<<__LINE__<<std::endl;
         // template add precondition calculating here
         update_precondition(precondition, ik, this->wfc_basis->npwk[ik]);
-std::cout<<__FILE__<<__LINE__<<std::endl;
         /// solve eigenvector and eigenvalue for H(k)
         this->hamiltSolvePsiK(pHamilt, psi, eigenvalues.data() + ik * pes->ekb.nc);
-std::cout<<__FILE__<<__LINE__<<std::endl;
+
         if(skip_charge)
         {
             GlobalV::ofs_running<< "Average iterative diagonalization steps for k-points "<<ik<<" is: "<<DiagoIterAssist<FPTYPE, Device>::avg_iter
@@ -176,22 +173,14 @@ std::cout<<__FILE__<<__LINE__<<std::endl;
         }
         /// calculate the contribution of Psi for charge density rho
      }
-std::cout<<__FILE__<<__LINE__<<std::endl;
     castmem_2d_2h_op()(cpu_ctx, cpu_ctx, pes->ekb.c, eigenvalues.data(), pes->ekb.nr * pes->ekb.nc);
-std::cout<<__FILE__<<__LINE__<<std::endl;
     this->endDiagh();
     if(skip_charge)
     {
         ModuleBase::timer::tick("HSolverPW", "solve");
         return;
     }
-    // it is where one should decide how to solve the descrepancy between nbands and nlocal or say npswfc
-std::cout<<__FILE__<<__LINE__<<std::endl;
-    std::cout<<"descrepancy of dimension check: "<<std::endl;
-    std::cout<<"number of bands of psi: "<<psi.get_nbands()<<std::endl;
-    std::cout<<"number of bands of ElecState::ekb: "<<pes->ekb.nr<<std::endl;
     reinterpret_cast<elecstate::ElecStatePW<FPTYPE, Device>*>(pes)->psiToRho(psi);
-std::cout<<__FILE__<<__LINE__<<std::endl;
 #ifdef USE_PAW
     if(GlobalV::use_paw)
     {
@@ -269,50 +258,6 @@ void HSolverPW<FPTYPE, Device>::endDiagh()
 }
 
 template <typename FPTYPE, typename Device>
-void HSolverPW<FPTYPE, Device>::atomwise_precondition(hamilt::Hamilt<FPTYPE, Device>* pHamilt,
-                                                      psi::Psi<std::complex<FPTYPE>, Device>& psi)
-{
-    assert(pHamilt != nullptr);
-    const int starting_nwfc = std::max(GlobalC::ucell.natomwfc, GlobalV::NBANDS);
-    const int nbands = psi.get_nbands();
-    const int nbasis = psi.get_nbasis();
-    std::vector<FPTYPE> etatom(starting_nwfc, 0.0);
-
-    if(
-        (GlobalV::init_wfc.substr(0, 6) == "atomic")
-      ||(GlobalV::init_wfc.substr(0, 3) == "nao")
-        )
-    {
-        // atomic or atomic+random
-        //ModuleBase::ComplexMatrix pswfc_bak(starting_nwfc, nbasis);
-        std::complex<FPTYPE>* pswfc_bak = new std::complex<FPTYPE>[starting_nwfc*nbasis];
-        for(int iwfc = 0; iwfc < starting_nwfc; iwfc++)
-        {
-            for(int ibasis = 0; ibasis < nbasis; ibasis++)
-            {
-                pswfc_bak[iwfc*nbasis+ibasis] = psi.get_pointer(iwfc)[ibasis];
-            }
-        }
-        if(GlobalV::BASIS_TYPE == "cg")
-        {
-            hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace_init(pHamilt, 
-                                                                  pswfc_bak, starting_nwfc, nbasis,
-                                                                  psi,
-                                                                  etatom.data());
-        }
-        delete[] pswfc_bak;
-    }
-    else if((GlobalV::init_wfc == "random"))
-    {
-        // random
-        if(GlobalV::KS_SOLVER == "cg")
-        {
-            hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace(pHamilt, psi, psi, etatom.data());
-        }
-    }
-}
-
-template <typename FPTYPE, typename Device>
 void HSolverPW<FPTYPE, Device>::updatePsiK(hamilt::Hamilt<FPTYPE, Device>* pHamilt,
                                            psi::Psi<std::complex<FPTYPE>, Device>& psi,
                                            const int ik)
@@ -320,11 +265,11 @@ void HSolverPW<FPTYPE, Device>::updatePsiK(hamilt::Hamilt<FPTYPE, Device>* pHami
     psi.fix_k(ik);
     if(GlobalV::psi_initializer) // new psi initialization method interface
     {
-        // do nothing here
+        // do nothing here, because we have already initialize, allocate and make initial guess
     }
-    else if(!this->initialed_psi)
+    else if(!this->initialed_psi) // old psi initialization method interface
     {
-        if(GlobalV::BASIS_TYPE=="pw") // old psi initialization method interface
+        if(GlobalV::BASIS_TYPE=="pw")
         {
             hamilt::diago_PAO_in_pw_k2(this->ctx, ik, psi, this->wfc_basis, this->pwf, pHamilt);
         }

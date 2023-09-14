@@ -4,15 +4,14 @@
 #include "module_base/complexmatrix.h"
 #include "module_base/realarray.h"
 
-template <typename FPTYPE>
-class psi_initializer_atomic : public psi_initializer<FPTYPE>
+class psi_initializer_atomic : public psi_initializer
 {
     public:
         psi_initializer_atomic(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in);
         ~psi_initializer_atomic();
 
         // methods
-        psi::Psi<std::complex<FPTYPE>>* cal_psig(int ik) override;
+        psi::Psi<std::complex<double>>* cal_psig(int ik) override;
 
         // setters
         void set_pseudopot_files(std::string* pseudopot_files);

@@ -143,7 +143,7 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
         current_spin = this->klist->isk[ik];
     }
     int nbands = psi.get_nbands();
-    std::cout<<__FILE__<<__LINE__<<std::endl;
+
     const double threshold = ModuleBase::threshold_wg * this->wg(ik, 0);
     //  here we compute the band energy: the sum of the eigenvalues
     if (GlobalV::NSPIN == 4)
@@ -171,9 +171,6 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
     }
     else
     {
-        std::cout << "Have you decided how to handle with cases where nbands != nlocal or npswfc?" << std::endl;
-        std::cout<<__FILE__<<__LINE__<<std::endl;
-        std::cout << "nbands in for loop is: " << nbands << ", while wg has dimension: (" << wg.nr << "*" << wg.nc << ")." << std::endl;
         for (int ibnd = 0; ibnd < nbands; ibnd++)
         {
             ///
@@ -216,7 +213,6 @@ void ElecStatePW<FPTYPE, Device>::rhoBandK(const psi::Psi<std::complex<FPTYPE>, 
                 }
             }
         }
-        std::cout<<__FILE__<<__LINE__<<std::endl;
     }
 }
 

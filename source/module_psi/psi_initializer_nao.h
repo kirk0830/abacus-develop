@@ -2,15 +2,14 @@
 #define PSI_INITIALIZER_NAO_H
 #include "psi_initializer.h"
 
-template<typename FPTYPE>
-class psi_initializer_nao : public psi_initializer<FPTYPE>
+class psi_initializer_nao : public psi_initializer
 {
     public:
         psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in);
         ~psi_initializer_nao();
 
         // methods
-        psi::Psi<std::complex<FPTYPE>>* cal_psig(int ik) override;
+        psi::Psi<std::complex<double>>* cal_psig(int ik) override;
 
         // setters
         void set_orbital_files(std::string* orbital_files);

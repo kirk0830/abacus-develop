@@ -148,8 +148,16 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
         delete this->psi;
     if (GlobalV::psi_initializer)
     {
+        /* 
+           in ESolver_KS_PW::Init(), pseudopotential, numerical orbital files are already read-in, therefore it is possible
+           to initialize psi here, in the end of Init_GlobalC(), there is a cast to copy data from psi to kspw_psi.
+           because psig in some cases is planewave expansion of pswfc or nao, the dimension is not NBANDS, HSolver is needed
+           to adjust the dimension to psi. Therefore the dataflow becomes: psig -> psi -> kspw_psi
+           —— on the refactor of wavefunc class, Kirk0830
+        */
         delete this->psi_init->psig;
-        this->psi = this->psi_init->allocate();
+        this->psi = this->psi_init->allocate(); // allocate psi::Psi<std::complex<double>>* memory for this->psi
+        this->initialize_psi();
     }
     else
     {
@@ -165,10 +173,11 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
         this->wf.wfcinit(this->psi, this->pw_wfc);
     }
 
+    // psi initialization should be ealier than this, because in kspw_psi it is, full of heterogeneous calculation supported features.
     // denghui added 20221116
     this->kspw_psi = GlobalV::device_flag == "gpu" || GlobalV::precision_flag == "single"
-                         ? new psi::Psi<std::complex<FPTYPE>, Device>(this->psi[0])
-                         : reinterpret_cast<psi::Psi<std::complex<FPTYPE>, Device>*>(this->psi);
+                         ? new psi::Psi<std::complex<FPTYPE>, Device>(this->psi[0])             // <-copy via constructor, static_cast<FPTYPE> used to copy data
+                         : reinterpret_cast<psi::Psi<std::complex<FPTYPE>, Device>*>(this->psi);// <-simply a alias
     if (GlobalV::precision_flag == "single")
     {
         ModuleBase::Memory::record("Psi_single", sizeof(std::complex<FPTYPE>) * this->psi[0].size());
@@ -216,18 +225,18 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
     {
         if(GlobalV::init_wfc == "atomic")
         {
-            this->psi_init = new psi_initializer_atomic<FPTYPE>(&(this->sf), this->pw_wfc);
+            this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
             // there are things only need to calculate once
             this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
             this->psi_init->cal_ovlp_pswfcjlq();
         }
         else if(GlobalV::init_wfc == "random")
         {
-            this->psi_init = new psi_initializer_random<FPTYPE>(&(this->sf), this->pw_wfc);
+            this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
         }
         else if(GlobalV::init_wfc == "nao")
         {
-            this->psi_init = new psi_initializer_nao<FPTYPE>(&(this->sf), this->pw_wfc);
+            this->psi_init = new psi_initializer_nao(&(this->sf), this->pw_wfc);
             // there are things only need to calculate once
             this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
             this->psi_init->cal_ovlp_flzjlq();
@@ -443,22 +452,28 @@ void ESolver_KS_PW<FPTYPE, Device>::eachiterinit(const int istep, const int iter
         this->pelec->charge->save_rho_before_sum_band();
     }
 }
+
+/*
+  Although ESolver_KS_PW supports template, but in this function it has no relationship with
+  heterogeneous calculation, so all templates function are specialized to double
+*/
 template <typename FPTYPE, typename Device>
 void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
 {
     if (GlobalV::psi_initializer)
     {
+        hamilt::HamiltPW<double>* phamilt_cg = new hamilt::HamiltPW<double>(this->pelec->pot, this->pw_wfc, &this->kv);
         for (int ik = 0; ik < this->pw_wfc->nks; ik++)
         {
             this->psi->fix_k(ik);
-            psi::Psi<std::complex<FPTYPE>>* psig = this->psi_init->cal_psig(ik);
-            std::vector<FPTYPE> etatom(psig->get_nbands(), 0.0);
+            psi::Psi<std::complex<double>>* psig = this->psi_init->cal_psig(ik);
+            std::vector<double> etatom(psig->get_nbands(), 0.0);
             if (this->psi_init->get_method() != "random")
             {
                 if (GlobalV::KS_SOLVER == "cg")
                 {
-                    hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace_init(
-                        this->p_hamilt,
+                    hsolver::DiagoIterAssist<double>::diagH_subspace_init(
+                        phamilt_cg,
                         psig->get_pointer(), psig->get_nbands(), psig->get_nbasis(),
                         *(this->psi), etatom.data()
                     );
@@ -470,9 +485,9 @@ void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
             {
                 if (GlobalV::KS_SOLVER == "cg")
                 {
-                    hsolver::DiagoIterAssist<FPTYPE>::diagH_subspace_init(
-                        this->p_hamilt,
-                        this->psi, this->psi, etatom.data()
+                    hsolver::DiagoIterAssist<double>::diagH_subspace(
+                        phamilt_cg,
+                        this->psi[0], this->psi[0], etatom.data()
                     );
                     continue;
                 }
@@ -487,6 +502,8 @@ void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
                 }
             }
         }
+        delete phamilt_cg;
+        phamilt_cg = nullptr;
     }
 }
 
@@ -514,10 +531,7 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
         hsolver::DiagoIterAssist<FPTYPE, Device>::SCF_ITER = iter;
         hsolver::DiagoIterAssist<FPTYPE, Device>::PW_DIAG_THR = ethr;
         hsolver::DiagoIterAssist<FPTYPE, Device>::PW_DIAG_NMAX = GlobalV::PW_DIAG_NMAX;
-        if (GlobalV::psi_initializer)
-        {
-            this->initialize_psi();
-        }
+
         this->phsol->solve(this->p_hamilt, this->kspw_psi[0], this->pelec, GlobalV::KS_SOLVER);
         if (GlobalV::out_bandgap)
         {

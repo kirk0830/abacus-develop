@@ -2,8 +2,8 @@
 #include <sstream>
 #include <fstream>
 
-template<typename FPTYPE>
-psi_initializer_nao<FPTYPE>::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer<FPTYPE>(sf_in, pw_wfc_in)
+
+psi_initializer_nao::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
 {
 	this->set_method("nao");
     // find correct dimension for ovlp_flzjlq
@@ -23,8 +23,8 @@ psi_initializer_nao<FPTYPE>::psi_initializer_nao(Structure_Factor* sf_in, Module
     this->ovlp_flzjlq.create(dim1, dim2, dim3);
     this->ovlp_flzjlq.zero_out();
 }
-template<typename FPTYPE>
-psi_initializer_nao<FPTYPE>::~psi_initializer_nao()
+
+psi_initializer_nao::~psi_initializer_nao()
 {
     if (this->sf != nullptr)
     {
@@ -32,8 +32,8 @@ psi_initializer_nao<FPTYPE>::~psi_initializer_nao()
     }
 }
 
-template<typename FPTYPE>
-void psi_initializer_nao<FPTYPE>::set_orbital_files(std::string* orbital_files)
+
+void psi_initializer_nao::set_orbital_files(std::string* orbital_files)
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 	for (int itype = 0; itype < GlobalC::ucell.ntype; itype++)
@@ -43,8 +43,8 @@ void psi_initializer_nao<FPTYPE>::set_orbital_files(std::string* orbital_files)
 	ModuleBase::timer::tick("psi_initializer_nao", "set_orbital_files");
 }
 
-template<typename FPTYPE>
-void psi_initializer_nao<FPTYPE>::cal_ovlp_flzjlq()
+
+void psi_initializer_nao::cal_ovlp_flzjlq()
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
     this->ovlp_flzjlq.zero_out();
@@ -103,8 +103,7 @@ void psi_initializer_nao<FPTYPE>::cal_ovlp_flzjlq()
 	ModuleBase::timer::tick("psi_initializer_nao", "cal_ovlp_flzjlq");
 }
 
-template<typename FPTYPE>
-psi::Psi<std::complex<FPTYPE>>* psi_initializer_nao<FPTYPE>::cal_psig(int ik)
+psi::Psi<std::complex<double>>* psi_initializer_nao::cal_psig(int ik)
 {
 	ModuleBase::timer::tick("psi_initializer_nao", "initialize");
 	assert(ik>=0);
@@ -131,7 +130,7 @@ psi::Psi<std::complex<FPTYPE>>* psi_initializer_nao<FPTYPE>::cal_psig(int ik)
 		for (int ia = 0; ia < GlobalC::ucell.atoms[it].na; ia++)
 		{
 /* HERE LOOP OVER ALL ATOMIS */
-            std::complex<double>* sk = sf->get_sk(ik, it, ia, this->pw_wfc);
+            std::complex<double>* sk = this->sf->get_sk(ik, it, ia, this->pw_wfc);
             int ic = 0;
             for(int L = 0; L < GlobalC::ucell.atoms[it].nwl+1; L++)
 			{

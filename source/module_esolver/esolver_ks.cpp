@@ -208,7 +208,6 @@ namespace ModuleESolver
         //}
         // initialize the real-space uniform grid for FFT and parallel
         // distribution of plane waves
-        std::cout << __FILE__ << __LINE__ << std::endl;
         GlobalC::Pgrid.init(this->pw_rho->nx,
                             this->pw_rho->ny,
                             this->pw_rho->nz,
@@ -239,7 +238,6 @@ namespace ModuleESolver
                 this->sf.eigts1.c,this->sf.eigts2.c,this->sf.eigts3.c);
         }
 #endif
-    std::cout << __FILE__ << __LINE__ << std::endl;
     }
 
     template<typename FPTYPE, typename Device>

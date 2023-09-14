@@ -1,8 +1,8 @@
 #include "psi_initializer_atomic.h"
 #include "module_hamilt_pw/hamilt_pwdft/soc.h"
 
-template <typename FPTYPE>
-psi_initializer_atomic<FPTYPE>::psi_initializer_atomic(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer<FPTYPE>(sf_in, pw_wfc_in)
+
+psi_initializer_atomic::psi_initializer_atomic(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
 {
     this->set_method("atomic");
     // find correct dimension for ovlp_flzjlq
@@ -18,13 +18,13 @@ psi_initializer_atomic<FPTYPE>::psi_initializer_atomic(Structure_Factor* sf_in, 
     this->ovlp_pswfcjlq.zero_out();
 }
 
-template <typename FPTYPE>
-psi_initializer_atomic<FPTYPE>::~psi_initializer_atomic()
+
+psi_initializer_atomic::~psi_initializer_atomic()
 {
 }
 
-template <typename FPTYPE>
-void psi_initializer_atomic<FPTYPE>::set_pseudopot_files(std::string* pseudopot_files)
+
+void psi_initializer_atomic::set_pseudopot_files(std::string* pseudopot_files)
 {
     ModuleBase::timer::tick("psi_initializer_atomic", "set_pseudopot_files");
     for (int itype = 0; itype < GlobalC::ucell.ntype; itype++)
@@ -34,8 +34,8 @@ void psi_initializer_atomic<FPTYPE>::set_pseudopot_files(std::string* pseudopot_
     ModuleBase::timer::tick("psi_initializer_atomic", "set_pseudopot_files");
 }
 
-template <typename FPTYPE>
-void psi_initializer_atomic<FPTYPE>::normalize_pswfc(int n_rgrid, double* pswfc, double* rab)
+
+void psi_initializer_atomic::normalize_pswfc(int n_rgrid, double* pswfc, double* rab)
 {
     ModuleBase::timer::tick("psi_initializer_atomic", "normalize_pswfc");
     double* norm_pswfc = new double[n_rgrid];
@@ -52,8 +52,8 @@ void psi_initializer_atomic<FPTYPE>::normalize_pswfc(int n_rgrid, double* pswfc,
     ModuleBase::timer::tick("psi_initializer_atomic", "normalize_pswfc");
 }
 
-template <typename FPTYPE>
-void psi_initializer_atomic<FPTYPE>::cal_ovlp_pswfcjlq()
+
+void psi_initializer_atomic::cal_ovlp_pswfcjlq()
 {
     ModuleBase::timer::tick("psi_initializer_atomic", "cal_ovlp_pswfcjlq");
     int maxn_rgrid = 0;
@@ -96,7 +96,7 @@ void psi_initializer_atomic<FPTYPE>::cal_ovlp_pswfcjlq()
             {
                 const int l = atom->ncpp.lchi[ic];
                 double* ovlp_pswfcjlq_q = new double[GlobalV::NQX];
-                sbt.direct(l, atom->ncpp.msh, atom->ncpp.r, pswfc, GlobalV::NQX, qgrid, ovlp_pswfcjlq_q, 1);
+                this->sbt.direct(l, atom->ncpp.msh, atom->ncpp.r, pswfc, GlobalV::NQX, qgrid, ovlp_pswfcjlq_q, 1);
                 for (int iq = 0; iq < GlobalV::NQX; iq++)
                 {
                     this->ovlp_pswfcjlq(it, ic, iq) = pref * ovlp_pswfcjlq_q[iq];
@@ -132,8 +132,8 @@ void psi_initializer_atomic<FPTYPE>::cal_ovlp_pswfcjlq()
     ModuleBase::timer::tick("psi_initializer_atomic", "cal_ovlp_pswfcjlq");
 }
 
-template <typename FPTYPE>
-std::complex<double> psi_initializer_atomic<FPTYPE>::phase_factor(double arg, int mode)
+
+std::complex<double> psi_initializer_atomic::phase_factor(double arg, int mode)
 {
     if(mode == 1) return std::complex<double>(cos(arg),0);
     else if (mode == -1) return std::complex<double>(0, sin(arg));
@@ -141,8 +141,8 @@ std::complex<double> psi_initializer_atomic<FPTYPE>::phase_factor(double arg, in
     else return std::complex<double>(1,0);
 }
 
-template <typename FPTYPE>
-psi::Psi<std::complex<FPTYPE>>* psi_initializer_atomic<FPTYPE>::cal_psig(int ik)
+
+psi::Psi<std::complex<double>>* psi_initializer_atomic::cal_psig(int ik)
 {
     ModuleBase::timer::tick("psi_initializer_atomic", "initialize");
     this->psig->fix_k(ik);
@@ -162,7 +162,6 @@ psi::Psi<std::complex<FPTYPE>>* psi_initializer_atomic<FPTYPE>::cal_psig(int ik)
     ModuleBase::YlmReal::Ylm_Real(total_lm, npw, gk, ylm);
     int index = 0;
     double *ovlp_pswfcjlg = new double[npw];
-    std::cout << "TEST: GlobalC::ucell.ntype = " << GlobalC::ucell.ntype << std::endl;
     for (int it = 0; it < GlobalC::ucell.ntype; it++)
     {
         for (int ia = 0; ia < GlobalC::ucell.atoms[it].na; ia++)
@@ -176,7 +175,6 @@ psi::Psi<std::complex<FPTYPE>>* psi_initializer_atomic<FPTYPE>::cal_psig(int ik)
                 {
 /* IF IS OCCUPIED, GET L */
                     const int l = GlobalC::ucell.atoms[it].ncpp.lchi[ipswfc];
-                    std::cout << "TEST: l = " << l << std::endl;
                     std::complex<double> lphase = pow(ModuleBase::NEG_IMAG_UNIT, l);
 
                     for (int ig=0; ig<npw; ig++)
@@ -362,7 +360,6 @@ psi::Psi<std::complex<FPTYPE>>* psi_initializer_atomic<FPTYPE>::cal_psig(int ik)
                                 (*(this->psig))(index, ig) = lphase * sk [ig] * ylm(lm, ig) * ovlp_pswfcjlg[ig];
                             }
                             index++;
-                            std::cout << "TEST: index = " << index << std::endl;
                         }
                     }
                 }

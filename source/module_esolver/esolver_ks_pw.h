@@ -82,10 +82,11 @@ namespace ModuleESolver
 
         void initialize_psi();
     private:
-        psi_initializer<FPTYPE>* psi_init = nullptr;
+        psi_initializer* psi_init = nullptr;
         Device * ctx = {};
         psi::AbacusDevice_t device = {};
-        psi::Psi<std::complex<FPTYPE>, Device>* kspw_psi = nullptr;
+        /// @brief float type and device dependent psi
+        psi::Psi<std::complex<FPTYPE>, Device>* kspw_psi = nullptr; // comparatively the psi itself is, declared as psi::Psi<std::complex<double>>* psi = nullptr;
         psi::Psi<std::complex<double>, Device>* __kspw_psi = nullptr;
         using castmem_2d_d2h_op = psi::memory::cast_memory_op<std::complex<double>, std::complex<FPTYPE>, psi::DEVICE_CPU, Device>;
     };

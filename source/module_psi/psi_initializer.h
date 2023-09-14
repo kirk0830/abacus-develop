@@ -30,7 +30,8 @@ Psi (planewave based wavefunction) initializer
 Auther: Kirk0830
 Institute: AI for Science Institute, BEIJING
 
-This class is used to allocate memory and give initial guess for Psi.
+This class is used to allocate memory and give initial guess for psi (not kspw_psi the FPTYPE, Device template one)
+therefore only double datatype is needed to be supported.
 Following methods are available:
     1. random: use random number to initialize psi
                implemented in psi_initializer_random.h
@@ -43,7 +44,6 @@ Following methods are available:
     5. nao+random: mix 'nao' with some random numbers to initialize psi
                    not implemented yet
 */
-template<typename FPTYPE>
 class psi_initializer
 {
     public:
@@ -62,7 +62,7 @@ class psi_initializer
         /// @brief calculate psi in planewave representation
         /// @param psi psi
         /// @param ik index of kpoint
-        virtual psi::Psi<std::complex<FPTYPE>>* cal_psig(int ik) = 0;
+        virtual psi::Psi<std::complex<double>>* cal_psig(int ik) = 0;
 
         /// @brief initialize planewave represented psi after change of cell volume
         /// @note due to wanf2, the Wannier function in pw representation, is not used anymore, this function is not needed anymore
@@ -85,23 +85,9 @@ class psi_initializer
         void set_nbands_complem(int nbands_in) { this->nbands_complem = nbands_in; }
 
         // virtual functions, will be implemented in derived classes
-        // random
-        virtual void random(std::complex<double>* psi,
-                            const int iw_start,
-                            const int iw_end,
-                            const int ik,
-                            const ModulePW::PW_Basis_K* wfc_basis) { ModuleBase::WARNING_QUIT("psi_initializer::random", "Polymorphism error"); }
-        virtual void random(std::complex<float>* psi,
-                            const int iw_start,
-                            const int iw_end,
-                            const int ik,
-                            const ModulePW::PW_Basis_K* wfc_basis) { ModuleBase::WARNING_QUIT("psi_initializer::random", "Polymorphism error"); }
-        #ifdef __MPI
-        void stick_to_pool(float* stick, const int& ir, float* out, const ModulePW::PW_Basis_K* wfc_basis) const;
-        void stick_to_pool(double* stick, const int& ir, double* out, const ModulePW::PW_Basis_K* wfc_basis) const;
-        #endif
 
-        void random_t(std::complex<FPTYPE>* psi, const int iw_start, const int iw_end, const int ik, const ModulePW::PW_Basis_K* wfc_basis)
+        // random to complement bands not initialized by pswfc or nao
+        void random_t(std::complex<double>* psi, const int iw_start, const int iw_end, const int ik, const ModulePW::PW_Basis_K* wfc_basis)
         {
             ModuleBase::timer::tick("psi_initializer", "random_t");
             assert(iw_start >= 0);
@@ -114,14 +100,14 @@ class psi_initializer
                 const int nz = wfc_basis->nz;
                 const int nstnz = wfc_basis->nst*nz;
 
-                FPTYPE *stickrr = new FPTYPE[nz];
-                FPTYPE *stickarg = new FPTYPE[nz];
-                FPTYPE *tmprr = new FPTYPE[nstnz];
-                FPTYPE *tmparg = new FPTYPE[nstnz];
+                double *stickrr = new double[nz];
+                double *stickarg = new double[nz];
+                double *tmprr = new double[nstnz];
+                double *tmparg = new double[nstnz];
                 for (int iw = iw_start ;iw < iw_end;iw++)
                 {   
                     // get the starting memory address of iw band
-                    std::complex<FPTYPE>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
+                    std::complex<double>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
                     int startig = 0;
                     for(int ipol = 0 ; ipol < GlobalV::NPOL ; ++ipol)
                     {
@@ -133,8 +119,8 @@ class psi_initializer
                             {
                                 for(int iz=0; iz<nz; iz++)
                                 {
-                                    stickrr[ iz ] = std::rand()/FPTYPE(RAND_MAX);
-                                    stickarg[ iz ] = std::rand()/FPTYPE(RAND_MAX);
+                                    stickrr[ iz ] = std::rand()/double(RAND_MAX);
+                                    stickarg[ iz ] = std::rand()/double(RAND_MAX);
                                 }
                             }
                             stick_to_pool(stickrr, ir, tmprr, wfc_basis);
@@ -143,10 +129,10 @@ class psi_initializer
 
                         for (int ig = 0;ig < ng;ig++)
                         {
-                            const FPTYPE rr = tmprr[wfc_basis->getigl2isz(ik,ig)];
-                            const FPTYPE arg= ModuleBase::TWO_PI * tmparg[wfc_basis->getigl2isz(ik,ig)];
-                            const FPTYPE gk2 = wfc_basis->getgk2(ik,ig);
-                            psi_slice[ig+startig] = std::complex<FPTYPE>(rr * cos(arg), rr * sin(arg)) / FPTYPE(gk2 + 1.0);
+                            const double rr = tmprr[wfc_basis->getigl2isz(ik,ig)];
+                            const double arg= ModuleBase::TWO_PI * tmparg[wfc_basis->getigl2isz(ik,ig)];
+                            const double gk2 = wfc_basis->getgk2(ik,ig);
+                            psi_slice[ig+startig] = std::complex<double>(rr * cos(arg), rr * sin(arg)) / double(gk2 + 1.0);
                         }
                         startig += this->pw_wfc->npwk_max;
                     }
@@ -166,22 +152,22 @@ class psi_initializer
         #endif
                 for (int iw = iw_start ;iw < iw_end; iw++)
                 {
-                    std::complex<FPTYPE>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
+                    std::complex<double>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);
                     for (int ig = 0; ig < ng; ig++)
                     {
-                        const FPTYPE rr = std::rand()/FPTYPE(RAND_MAX); //qianrui add RAND_MAX
-                        const FPTYPE arg= ModuleBase::TWO_PI * std::rand()/FPTYPE(RAND_MAX);
-                        const FPTYPE gk2 = wfc_basis->getgk2(ik,ig);
-                        psi_slice[ig] = std::complex<FPTYPE>(rr * cos(arg), rr * sin(arg)) / FPTYPE(gk2 + 1.0);
+                        const double rr = std::rand()/double(RAND_MAX); //qianrui add RAND_MAX
+                        const double arg= ModuleBase::TWO_PI * std::rand()/double(RAND_MAX);
+                        const double gk2 = wfc_basis->getgk2(ik,ig);
+                        psi_slice[ig] = std::complex<double>(rr * cos(arg), rr * sin(arg)) / double(gk2 + 1.0);
                     }
                     if(GlobalV::NPOL==2)
                     {
                         for (int ig = this->pw_wfc->npwk_max; ig < this->pw_wfc->npwk_max + ng; ig++)
                         {
-                            const FPTYPE rr = std::rand()/FPTYPE(RAND_MAX);
-                            const FPTYPE arg= ModuleBase::TWO_PI * std::rand()/FPTYPE(RAND_MAX);
-                            const FPTYPE gk2 = wfc_basis->getgk2(ik,ig-this->pw_wfc->npwk_max);
-                            psi_slice[ig] = std::complex<FPTYPE>(rr * cos(arg), rr * sin(arg)) / FPTYPE(gk2 + 1.0);
+                            const double rr = std::rand()/double(RAND_MAX);
+                            const double arg= ModuleBase::TWO_PI * std::rand()/double(RAND_MAX);
+                            const double gk2 = wfc_basis->getgk2(ik,ig-this->pw_wfc->npwk_max);
+                            psi_slice[ig] = std::complex<double>(rr * cos(arg), rr * sin(arg)) / double(gk2 + 1.0);
                         }
                     }
 
@@ -191,7 +177,12 @@ class psi_initializer
         #endif
             ModuleBase::timer::tick("psi_initializer_random", "random_t");
         }
-        
+        // random
+        virtual void random(std::complex<double>* psi, const int iw_start, const int iw_end,
+                            const int ik, const ModulePW::PW_Basis_K* wfc_basis) { ModuleBase::WARNING_QUIT("psi_initializer::random", "Polymorphism error"); }
+        #ifdef __MPI
+        void stick_to_pool(double* stick, const int& ir, double* out, const ModulePW::PW_Basis_K* wfc_basis) const;
+        #endif
         // atomic
         virtual void set_pseudopot_files(std::string* pseudopot_files) { ModuleBase::WARNING_QUIT("psi_initializer::set_pseudopot_files", "Polymorphism error"); }
         virtual void normalize_pswfc(int n_rgrid, double* pswfc, double* rgrid) { ModuleBase::WARNING_QUIT("psi_initializer::normalize_pswfc", "Polymorphism error"); }
@@ -204,7 +195,7 @@ class psi_initializer
         // nao+random
 
         // member variables
-        psi::Psi<std::complex<FPTYPE>>* psig;
+        psi::Psi<std::complex<double>>* psig;
 
         Structure_Factor* sf;
         ModulePW::PW_Basis_K* pw_wfc; // I dont think it should appear here. It should, only be modified by ESolver object.
