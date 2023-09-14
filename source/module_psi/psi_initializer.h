@@ -4,7 +4,8 @@
 #include "module_base/global_variable.h"
 #include "module_base/global_function.h"
 #include "module_hamilt_pw/hamilt_pwdft/global.h"
-// timer and memory support
+// basic functions support
+#include "module_base/tool_quit.h"
 #include "module_base/timer.h"
 // data structure support
 #include "module_psi/psi.h" // for psi data structure
@@ -84,6 +85,8 @@ class psi_initializer
         /// @param nbands_in nbands_complem
         void set_nbands_complem(int nbands_in) { this->nbands_complem = nbands_in; }
 
+        void write_psig() const;
+
         // virtual functions, will be implemented in derived classes
 
         // random to complement bands not initialized by pswfc or nao
@@ -104,7 +107,7 @@ class psi_initializer
                 double *stickarg = new double[nz];
                 double *tmprr = new double[nstnz];
                 double *tmparg = new double[nstnz];
-                for (int iw = iw_start ;iw < iw_end;iw++)
+                for (int iw = iw_start; iw < iw_end; iw++)
                 {   
                     // get the starting memory address of iw band
                     std::complex<double>* psi_slice = &(psi[iw * this->pw_wfc->npwk_max * GlobalV::NPOL]);

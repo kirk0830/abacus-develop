@@ -1,6 +1,6 @@
 #include "psi_initializer.h"
 #include "module_base/memory.h"
-
+#include <time.h>
 
 psi_initializer::psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in): sf(sf_in), pw_wfc(pw_wfc_in)
 {
@@ -79,12 +79,12 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
         if(nbands_files >= GlobalV::NBANDS)
         {
             nbands_actual = nbands_files;
-            this->nbands_complem = nbands_files - GlobalV::NBANDS;
+            this->nbands_complem = 0;
         }
         else
         {
             nbands_actual = GlobalV::NBANDS;
-            this->nbands_complem = 0;
+            this->nbands_complem = GlobalV::NBANDS - nbands_files;
         }
     }
 	int nkpts_actual = (GlobalV::CALCULATION == "nscf" && this->mem_saver == 1)? 
@@ -101,10 +101,6 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
             nbands_actual, 
                 nbasis_actual, 
                     this->pw_wfc->npwk);
-    std::cout << "TEST: psi allocated memory for: " 
-              << nkpts_actual << "*" 
-              << nbands_actual << "*" 
-              << nbasis_actual << std::endl;
     const size_t memory_cost = 
         nkpts_actual*
             nkpts_actual*
@@ -116,6 +112,38 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
     return psi_out;
 }
 
+void psi_initializer::write_psig() const
+{
+    // first get time stamp
+    time_t stamp = std::time(NULL);
+    std::string filename = "psig_"+std::to_string(stamp);
+    std::ofstream ofs_psig;
+    ofs_psig.open(filename+".out");
+    ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
+    ofs_psig << "psig information" << std::endl;
+    ofs_psig << "number of kpoints: " << this->psig->get_nk() << std::endl;
+    ofs_psig << "number of bands: " << this->psig->get_nbands() << std::endl;
+    ofs_psig << "number of planewaves: " << this->psig->get_nbasis() << std::endl;
+    ofs_psig << "Calculation information" << std::endl;
+    ofs_psig << "method of psi initialization: " << GlobalV::init_wfc << std::endl;
+    ofs_psig << "method of diagonalization: " << GlobalV::KS_SOLVER << std::endl;
+    for(int ik = 0; ik < this->psig->get_nk(); ik++)
+    {
+        this->psig->fix_k(ik);
+        ofs_psig << "k point No. " << ik << std::endl;
+        for(int iband = 0; iband < this->psig->get_nbands(); iband++)
+        {
+            ofs_psig << "energy band No. " << iband << std::endl;
+            for(int ibasis = 0; ibasis < this->psig->get_nbasis(); ibasis++)
+            {
+                ofs_psig << (*(this->psig))(iband, ibasis) << " ";
+            }
+            ofs_psig << std::endl;
+        }
+        ofs_psig << std::endl;
+    }
+    ofs_psig.close();
+}
 
 void psi_initializer::print_status(psi::Psi<std::complex<double>>& psi) const
 {

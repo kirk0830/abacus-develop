@@ -2,7 +2,7 @@
 #about the lattice structure.
 
 ATOMIC_SPECIES
-Si 1.000 Si.upf
+Si 1.000 Si_NCSR_ONCVPSP_v0.5_dojo.upf
 #Si.pz-vbc.UPF 	#Element, Mass, Pseudopotential
 
 NUMERICAL_ORBITAL

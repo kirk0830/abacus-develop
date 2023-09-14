@@ -1,7 +1,6 @@
 #include "psi_initializer_atomic.h"
 #include "module_hamilt_pw/hamilt_pwdft/soc.h"
 
-
 psi_initializer_atomic::psi_initializer_atomic(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in) : psi_initializer(sf_in, pw_wfc_in)
 {
     this->set_method("atomic");
@@ -11,6 +10,10 @@ psi_initializer_atomic::psi_initializer_atomic(Structure_Factor* sf_in, ModulePW
     for (int it = 0; it < GlobalC::ucell.ntype; it++)
     {
         dim2 = (GlobalC::ucell.atoms[it].ncpp.nchi > dim2) ? GlobalC::ucell.atoms[it].ncpp.nchi : dim2;
+    }
+    if (dim2 == 0)
+    {
+        ModuleBase::WARNING_QUIT("psi_initializer_atomic::psi_initializer_atomic", "there is not ANY pseudo atomic orbital read in present system, quit.");
     }
     int dim3 = GlobalV::NQX;
     // allocate memory for ovlp_flzjlq
@@ -49,6 +52,7 @@ void psi_initializer_atomic::normalize_pswfc(int n_rgrid, double* pswfc, double*
     {
         pswfc[ir] /= sqrt(norm);
     }
+    std::cout << "normalization of pswfc, before is: " << norm << std::endl;
     ModuleBase::timer::tick("psi_initializer_atomic", "normalize_pswfc");
 }
 
@@ -107,31 +111,8 @@ void psi_initializer_atomic::cal_ovlp_pswfcjlq()
         }
     }
     delete [] qgrid;
-    /* 
-     Finally copy data from ovlp_pswfcjlq to GlobalC::ppcell.tab_at 
-     I move it here because GlobalC is suspected to be removed in the future
-     ——on the refactor of LCAO
-    */
-   /*
-    std::cout << __FILE__ << __LINE__ << std::endl;
-    std::cout << "GlobalC::ppcell.tab_at dimension check: " << std::endl;
-    std::cout << GlobalC::ppcell.tab_at.getBound1() << "*" << GlobalC::ppcell.tab_at.getBound2() << "*" << GlobalC::ppcell.tab_at.getBound3() << std::endl;
-    GlobalC::ppcell.tab_at.zero_out();
-    
-    for (int it=0; it<GlobalC::ucell.ntype; it++)
-    {
-        for (int ic=0; ic<GlobalC::ucell.atoms[it].ncpp.nchi; ic++)
-        {
-            for (int iq=0; iq<GlobalV::NQX; iq++)
-            {
-                GlobalC::ppcell.tab_at(it, ic, iq) = this->ovlp_pswfcjlq(it, ic, iq);
-            }
-        }
-    }
-    */
     ModuleBase::timer::tick("psi_initializer_atomic", "cal_ovlp_pswfcjlq");
 }
-
 
 std::complex<double> psi_initializer_atomic::phase_factor(double arg, int mode)
 {
@@ -140,7 +121,6 @@ std::complex<double> psi_initializer_atomic::phase_factor(double arg, int mode)
     else if (mode == 0) return std::complex<double>(cos(arg), sin(arg));
     else return std::complex<double>(1,0);
 }
-
 
 psi::Psi<std::complex<double>>* psi_initializer_atomic::cal_psig(int ik)
 {

@@ -158,6 +158,7 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
         delete this->psi_init->psig;
         this->psi = this->psi_init->allocate(); // allocate psi::Psi<std::complex<double>>* memory for this->psi
         this->initialize_psi();
+        this->psi_init->write_psig();
     }
     else
     {
@@ -232,6 +233,7 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
         }
         else if(GlobalV::init_wfc == "random")
         {
+            //there is no problem with random, but not so for nao, why?
             this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
         }
         else if(GlobalV::init_wfc == "nao")
@@ -243,10 +245,8 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
         }
         else ModuleBase::WARNING_QUIT("ESolver_KS_LCAO::init", "for new psi initializer, init_wfc type not supported");
     }
-
     // temporary
     this->Init_GlobalC(inp, ucell);
-
     // Fix pelec->wg by ocp_kb
     if (GlobalV::ocp)
     {

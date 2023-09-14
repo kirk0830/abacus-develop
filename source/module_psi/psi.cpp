@@ -314,6 +314,57 @@ template <typename T, typename Device> std::tuple<const T*, int> Psi<T, Device>:
     }
 }
 
+template <typename T, typename Device> void Psi<T, Device>::write_psig() const
+{
+    time_t stamp = std::time(NULL);
+    std::string filename = "psig_"+std::to_string(stamp);
+    std::ofstream ofs_psig;
+    ofs_psig.open(filename+"_old.out");
+    ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
+    ofs_psig << "psig information" << std::endl;
+    ofs_psig << "number of kpoints: " << this->get_nk() << std::endl;
+    ofs_psig << "number of bands: " << this->get_nbands() << std::endl;
+    ofs_psig << "number of planewaves: " << this->get_nbasis() << std::endl;
+    for(int ik = 0; ik < this->get_nk(); ik++)
+    {
+        this->fix_k(ik);
+        ofs_psig << "k point No. " << ik << std::endl;
+        for(int iband = 0; iband < this->get_nbands(); iband++)
+        {
+            ofs_psig << "energy band No. " << iband << std::endl;
+            for(int ibasis = 0; ibasis < this->get_nbasis(); ibasis++)
+            {
+                ofs_psig << this->operator()(iband, ibasis) << " ";
+            }
+            ofs_psig << std::endl;
+        }
+        ofs_psig << std::endl;
+    }
+    ofs_psig.close();
+}
+template <typename T, typename Device> void Psi<T, Device>::write_psig(int ik) const
+{
+    std::string filename = "psig_"+std::to_string(ik);
+    std::ofstream ofs_psig;
+    ofs_psig.open(filename+"_kpt_old.out");
+    ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
+    ofs_psig << "psig information" << std::endl;
+    ofs_psig << "number of kpoints: " << this->get_nk() << std::endl;
+    ofs_psig << "number of bands: " << this->get_nbands() << std::endl;
+    ofs_psig << "number of planewaves: " << this->get_nbasis() << std::endl;
+    assert(this->current_k == ik);
+    ofs_psig << "k point No. " << ik << std::endl;
+    for(int iband = 0; iband < this->get_nbands(); iband++)
+    {
+        ofs_psig << "energy band No. " << iband << std::endl;
+        for(int ibasis = 0; ibasis < this->get_nbasis(); ibasis++)
+        {
+            ofs_psig << this->operator()(iband, ibasis) << " ";
+        }
+        ofs_psig << std::endl;
+    }
+    ofs_psig.close();
+}
 template class Psi<float, DEVICE_CPU>;
 template class Psi<std::complex<float>, DEVICE_CPU>;
 template class Psi<double, DEVICE_CPU>;

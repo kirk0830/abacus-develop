@@ -12,11 +12,15 @@ psi_initializer_nao::psi_initializer_nao(Structure_Factor* sf_in, ModulePW::PW_B
     for (int it = 0; it < GlobalC::ucell.ntype; it++)
     {
         int nzeta = 0;
-        for (int l = 0; l <= GlobalC::ucell.atoms[it].nwl+1; l++)
+        for (int l = 0; l < GlobalC::ucell.atoms[it].nwl+1; l++)
         {
             nzeta += GlobalC::ucell.atoms[it].l_nchi[l];
         }
         dim2 = (nzeta > dim2) ? nzeta : dim2;
+    }
+    if (dim2 == 0)
+    {
+        ModuleBase::WARNING_QUIT("psi_initializer_nao::psi_initializer_nao", "there is not ANY numerical atomic orbital read in present system, quit.");
     }
     int dim3 = GlobalV::NQX;
     // allocate memory for ovlp_flzjlq

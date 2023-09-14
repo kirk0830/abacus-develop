@@ -272,6 +272,7 @@ void HSolverPW<FPTYPE, Device>::updatePsiK(hamilt::Hamilt<FPTYPE, Device>* pHami
         if(GlobalV::BASIS_TYPE=="pw")
         {
             hamilt::diago_PAO_in_pw_k2(this->ctx, ik, psi, this->wfc_basis, this->pwf, pHamilt);
+            psi.write_psig(ik);
         }
     }
 }
