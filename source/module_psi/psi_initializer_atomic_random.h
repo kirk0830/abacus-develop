@@ -9,6 +9,5 @@ class psi_initializer_atomic_random : public psi_initializer_atomic
         ~psi_initializer_atomic_random();
         psi::Psi<std::complex<double>>* cal_psig(int ik) override;
     private:
-
 };
 #endif
