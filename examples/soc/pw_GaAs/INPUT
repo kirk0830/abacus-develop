@@ -28,5 +28,5 @@ mixing_beta             0.4
 mixing_gg0              1.5
 
 psi_initializer 1
-init_wfc atomic
-ks_solver cg
+init_wfc random
+ks_solver dav

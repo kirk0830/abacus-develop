@@ -1288,15 +1288,15 @@ void UnitCell::read_nao_flz(int it, std::string &orb_file, std::ofstream &ofs_ru
 	else
 	{
 		std::stringstream ss;
-		ss << "Orbital of species " << this->atom_label;
+		ss << "Orbital of species " << this->atom_label[it];
 		ModuleBase::GlobalFunc::OUT(GlobalV::ofs_running,ss.str(), orb_file);
 	}
 	ifs.close();
 
 	int total_n_chi = 0;
-	for(int l = 0; l < GlobalC::ucell.atoms[it].nwl+1; l++)
+	for(int l = 0; l < this->atoms[it].nwl+1; l++)
 	{
-		for(int izeta = 0; izeta < GlobalC::ucell.atoms[it].l_nchi[l]; izeta++)
+		for(int izeta = 0; izeta < this->atoms[it].l_nchi[l]; izeta++)
 		{
 			total_n_chi++;
 		}
@@ -1309,9 +1309,9 @@ void UnitCell::read_nao_flz(int it, std::string &orb_file, std::ofstream &ofs_ru
 	atom->flz = new double*[total_n_chi];
 	atom->rgrid = new double*[total_n_chi];
 	int flatten_ichi = 0;
-	for(int l = 0; l < GlobalC::ucell.atoms[it].nwl+1; l++)
+	for(int l = 0; l < this->atoms[it].nwl+1; l++)
 	{
-		for(int izeta = 0; izeta < GlobalC::ucell.atoms[it].l_nchi[l]; izeta++)
+		for(int izeta = 0; izeta < this->atoms[it].l_nchi[l]; izeta++)
 		{
 			GlobalV::ofs_running<<" l = "<<l<<" N = "<< izeta;
 			std::ifstream in(orb_file.c_str());
