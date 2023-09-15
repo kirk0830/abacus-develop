@@ -450,7 +450,7 @@ bool UnitCell::read_atom_positions(std::ifstream &ifpos, std::ofstream &ofs_runn
 			  ||(
 					(GlobalV::BASIS_TYPE == "pw")
 				  &&(GlobalV::psi_initializer) 
-				  &&(GlobalV::init_wfc.substr(0,3) == "nao")
+				  &&(GlobalV::init_wfc.substr(0, 3) == "nao")
 				)
 				)
 			{

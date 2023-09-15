@@ -243,6 +243,20 @@ void ESolver_KS_PW<FPTYPE, Device>::Init(Input& inp, UnitCell& ucell)
             this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
             this->psi_init->cal_ovlp_flzjlq();
         }
+        else if(GlobalV::init_wfc == "atomic+random")
+        {
+            this->psi_init = new psi_initializer_atomic_random(&(this->sf), this->pw_wfc);
+            // there are things only need to calculate once
+            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            this->psi_init->cal_ovlp_pswfcjlq();
+        }
+        else if(GlobalV::init_wfc == "nao+random")
+        {
+            this->psi_init = new psi_initializer_nao_random(&(this->sf), this->pw_wfc);
+            // there are things only need to calculate once
+            this->psi_init->set_orbital_files(GlobalC::ucell.orbital_fn);
+            this->psi_init->cal_ovlp_flzjlq();
+        }
         else ModuleBase::WARNING_QUIT("ESolver_KS_LCAO::init", "for new psi initializer, init_wfc type not supported");
     }
     // temporary
