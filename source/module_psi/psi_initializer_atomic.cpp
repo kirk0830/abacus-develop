@@ -52,7 +52,6 @@ void psi_initializer_atomic::normalize_pswfc(int n_rgrid, double* pswfc, double*
     {
         pswfc[ir] /= sqrt(norm);
     }
-    std::cout << "normalization of pswfc, before is: " << norm << std::endl;
     ModuleBase::timer::tick("psi_initializer_atomic", "normalize_pswfc");
 }
 

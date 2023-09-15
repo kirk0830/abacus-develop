@@ -483,11 +483,13 @@ void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
             }
             else
             {
+                // seems something wrong here leads to failure of diagonalization
                 if (GlobalV::KS_SOLVER == "cg")
                 {
+                    // must be... the use of "this->psi[0]"
                     hsolver::DiagoIterAssist<double>::diagH_subspace(
                         phamilt_cg,
-                        this->psi[0], this->psi[0], etatom.data()
+                        *(psig), *(this->psi), etatom.data()
                     );
                     continue;
                 }
