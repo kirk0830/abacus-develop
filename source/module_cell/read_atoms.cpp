@@ -907,7 +907,15 @@ void UnitCell::print_stru_file(const std::string &fn, const int &type, const int
 		ofs << atom_label[it] << " " << atom_mass[it] << " " << pseudo_fn[it] << " " << pseudo_type[it] << std::endl;
 	}
 
-	if(GlobalV::BASIS_TYPE=="lcao" || GlobalV::BASIS_TYPE=="lcao_in_pw") //xiaohui add 2013-09-02. Attention...
+	if(
+		(GlobalV::BASIS_TYPE=="lcao") 
+	  ||(GlobalV::BASIS_TYPE=="lcao_in_pw") // lcao_in_pw is forever deprecated
+	  ||(//we also plan to output numerical orbital information if use init_wfc = nao
+			(GlobalV::BASIS_TYPE=="pw")
+		  &&(GlobalV::psi_initializer)
+		  &&(GlobalV::init_wfc.substr(0, 3)=="nao")
+	    )
+	  ) //xiaohui add 2013-09-02. Attention...
 	{	
 		ofs << "\nNUMERICAL_ORBITAL" << std::endl;
 		for(int it=0; it<ntype; it++)
