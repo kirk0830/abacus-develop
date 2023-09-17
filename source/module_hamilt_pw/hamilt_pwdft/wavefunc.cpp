@@ -197,7 +197,6 @@ void diago_PAO_in_pw_k2(const int &ik,
 			if(phm_in!= nullptr)
 			{
 				hsolver::DiagoIterAssist<float>::diagH_subspace(phm_in, wvf, wvf, etatom.data());
-				wvf.write_psig(ik);
 				return;
 			}
 			else
@@ -205,7 +204,6 @@ void diago_PAO_in_pw_k2(const int &ik,
 				ModuleBase::WARNING_QUIT("wavefunc","Hamiltonian does not exist!");
 			}
 		}
-		wvf.write_psig(ik);
 	}
 	else if(p_wf->init_wfc.substr(0,6)=="atomic")
 	{
@@ -242,7 +240,6 @@ void diago_PAO_in_pw_k2(const int &ik,
 																	wfcatom.nc,
 																	wvf,
 																	etatom.data());
-				wvf.write_psig(ik);
 				return;
 			}
 			else
@@ -261,7 +258,6 @@ void diago_PAO_in_pw_k2(const int &ik,
 				wvf(ib, ig) = s_wfcatom[ib * nbasis + ig];
 			}
 		}
-		wvf.write_psig(ik);
 	}
 }
 

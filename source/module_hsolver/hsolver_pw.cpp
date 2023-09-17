@@ -272,7 +272,11 @@ void HSolverPW<FPTYPE, Device>::updatePsiK(hamilt::Hamilt<FPTYPE, Device>* pHami
         if(GlobalV::BASIS_TYPE=="pw")
         {
             hamilt::diago_PAO_in_pw_k2(this->ctx, ik, psi, this->wfc_basis, this->pwf, pHamilt);
-            psi.write_psig(ik);
+            /*
+                because the wavefunction is initialized at kpt one by one, it is not possible to write to file
+                concurrently over all kpoints, so multiple files will be written if there are multiple kpoints.
+            */
+            if(GlobalV::wfc_dump) psi.write_psig(ik);
         }
     }
 }

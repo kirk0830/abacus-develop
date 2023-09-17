@@ -236,7 +236,11 @@ class psi_initializer
         /// @brief getter of random_mix
         /// @return this->random_mix
         double get_random_mix() const { return this->random_mix; }
-
+        /// @brief getter of ixy2is, the mapping from fftixy to stick index
+        /// @return this->ixy2is
+        int* get_ixy2is() const { return this->ixy2is; }
+        /// @brief setter of ixy2is, the mapping from fftixy to stick index
+        void set_ixy2is(int* ixy2is_in) { this->ixy2is = ixy2is_in; }
         // member variables
         /// @brief interface to the psi::Psi data structure class
         psi::Psi<std::complex<double>>* psig;

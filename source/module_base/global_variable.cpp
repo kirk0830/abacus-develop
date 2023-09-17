@@ -256,6 +256,7 @@ int out_pot = 0;
 std::string init_chg = "";
 std::string init_wfc = "random";
 bool psi_initializer = false;
+bool wfc_dump = true;
 int out_chg = 0;
 double nelec = 0;
 bool out_bandgap = false; // QO added for bandgap printing

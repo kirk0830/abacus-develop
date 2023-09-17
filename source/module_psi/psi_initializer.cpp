@@ -1,6 +1,5 @@
 #include "psi_initializer.h"
 #include "module_base/memory.h"
-#include <time.h>
 
 psi_initializer::psi_initializer(Structure_Factor* sf_in, ModulePW::PW_Basis_K* pw_wfc_in): sf(sf_in), pw_wfc(pw_wfc_in)
 {
@@ -60,14 +59,14 @@ int psi_initializer::get_starting_nw() const
 psi::Psi<std::complex<double>>* psi_initializer::allocate()
 {
     ModuleBase::timer::tick("psi_initializer", "allocate");
-	int prefactor = 1;
     /*
-    Here the method for determining memory space (number of band, the first dimension) of psi is:
-    1. if nbands > nlocal and natomwfc, will use nbands
-    2. if nbands < nlocal or natomwfc, will use nlocal or natomwfc
+        WARNING: when basis_type = "pw", the variable GlobalV::NLOCAL will also be set, in this case, it is set to
+        9 = 1 + 3 + 5, which is the maximal number of orbitals spd, I don't think it is reasonable
+        The way of calculating GlobalC::ucell.natomwfc is, for each atom, read pswfc and for s, it is 1, for p, it is 3
+        , then multiplied by the number of atoms, and then add them together.
     */
-    int nbands_files = (GlobalC::ucell.natomwfc >= GlobalV::NLOCAL)? 
-                            GlobalC::ucell.natomwfc : GlobalV::NLOCAL;
+    std::cout << "GlobalV::NLOCAL = " << GlobalV::NLOCAL << std::endl;
+	int prefactor = 1;
     int nbands_actual = 0;
     if(GlobalV::init_wfc == "random") 
     {
@@ -76,17 +75,48 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
     }
     else
     {
-        if(nbands_files >= GlobalV::NBANDS)
+        if(GlobalV::init_wfc.substr(0, 6) == "atomic")
         {
-            nbands_actual = nbands_files;
-            this->nbands_complem = 0;
+            if(GlobalC::ucell.natomwfc >= GlobalV::NBANDS)
+            {
+                nbands_actual = GlobalC::ucell.natomwfc;
+                this->nbands_complem = 0;
+            }
+            else
+            {
+                nbands_actual = GlobalV::NBANDS;
+                this->nbands_complem = GlobalV::NBANDS - GlobalC::ucell.natomwfc;
+            }
         }
-        else
+        else if(GlobalV::init_wfc.substr(0, 3) == "nao")
         {
-            nbands_actual = GlobalV::NBANDS;
-            this->nbands_complem = GlobalV::NBANDS - nbands_files;
+            /*
+                previously GlobalV::NLOCAL is used here, however it is wrong. GlobalV::NLOCAL is fixed to 9*nat.
+            */
+            int nbands_local = 0;
+            for(int it = 0; it < GlobalC::ucell.ntype; it++)
+            {
+                for(int ia = 0; ia < GlobalC::ucell.atoms[it].na; ia++)
+                {
+                    for(int l = 0; l < GlobalC::ucell.atoms[it].nwl + 1; l++)
+                    {
+                        nbands_local += GlobalC::ucell.atoms[it].l_nchi[l]*(2*l+1);
+                    }
+                }
+            }
+            if(nbands_local >= GlobalV::NBANDS)
+            {
+                nbands_actual = nbands_local;
+                this->nbands_complem = 0;
+            }
+            else
+            {
+                nbands_actual = GlobalV::NBANDS;
+                this->nbands_complem = GlobalV::NBANDS - nbands_local;
+            }
         }
     }
+    
 	int nkpts_actual = (GlobalV::CALCULATION == "nscf" && this->mem_saver == 1)? 
                             1 : this->pw_wfc->nks;
     int nbasis_actual = this->pw_wfc->npwk_max * GlobalV::NPOL;
@@ -114,21 +144,19 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
 
 void psi_initializer::write_psig() const
 {
-    // first get time stamp
-    time_t stamp = std::time(NULL);
-    std::string filename = "psig_"+std::to_string(stamp);
-    std::ofstream ofs_psig;
-    ofs_psig.open(filename+".out");
-    ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
-    ofs_psig << "psig information" << std::endl;
-    ofs_psig << "number of kpoints: " << this->psig->get_nk() << std::endl;
-    ofs_psig << "number of bands: " << this->psig->get_nbands() << std::endl;
-    ofs_psig << "number of planewaves: " << this->psig->get_nbasis() << std::endl;
-    ofs_psig << "Calculation information" << std::endl;
-    ofs_psig << "method of psi initialization: " << GlobalV::init_wfc << std::endl;
-    ofs_psig << "method of diagonalization: " << GlobalV::KS_SOLVER << std::endl;
     for(int ik = 0; ik < this->psig->get_nk(); ik++)
     {
+        std::string filename = "psig_"+std::to_string(ik);
+        std::ofstream ofs_psig;
+        ofs_psig.open(filename+"_kpt.out");
+        ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
+        ofs_psig << "psig information" << std::endl;
+        ofs_psig << "number of kpoints: " << this->psig->get_nk() << std::endl;
+        ofs_psig << "number of bands: " << this->psig->get_nbands() << std::endl;
+        ofs_psig << "number of planewaves: " << this->psig->get_nbasis() << std::endl;
+        ofs_psig << "Calculation information" << std::endl;
+        ofs_psig << "method of psi initialization: " << GlobalV::init_wfc << std::endl;
+        ofs_psig << "method of diagonalization: " << GlobalV::KS_SOLVER << std::endl;
         this->psig->fix_k(ik);
         ofs_psig << "k point No. " << ik << std::endl;
         for(int iband = 0; iband < this->psig->get_nbands(); iband++)
@@ -141,8 +169,8 @@ void psi_initializer::write_psig() const
             ofs_psig << std::endl;
         }
         ofs_psig << std::endl;
+        ofs_psig.close();
     }
-    ofs_psig.close();
 }
 
 void psi_initializer::print_status(psi::Psi<std::complex<double>>& psi) const

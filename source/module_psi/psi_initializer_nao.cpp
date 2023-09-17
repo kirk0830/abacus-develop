@@ -135,7 +135,7 @@ psi::Psi<std::complex<double>>* psi_initializer_nao::cal_psig(int ik)
 		{
 /* HERE LOOP OVER ALL ATOMIS */
             std::complex<double>* sk = this->sf->get_sk(ik, it, ia, this->pw_wfc);
-            int ic = 0;
+            int ic = 0; // ic is a flatten index of chi, therefore it is defined here.
             for(int L = 0; L < GlobalC::ucell.atoms[it].nwl+1; L++)
 			{
 				std::complex<double> lphase = pow(ModuleBase::NEG_IMAG_UNIT, L); //mohan 2010-04-19
@@ -272,7 +272,8 @@ psi::Psi<std::complex<double>>* psi_initializer_nao::cal_psig(int ik)
 						} // end for is_N
                     } // end if GlobalV::NONCOLIN
                     else{//LSDA and nomagnet case
-						for(int m=0; m<2*L+1; m++)
+	/* DOES NOT DISTINGUISH m QUANTUM NUMBER FOR CHI */
+						for(int m = 0; m < 2*L+1; m++)
 						{
 							const int lm = L*L+m;
 							for(int ig=0; ig<npw; ig++)

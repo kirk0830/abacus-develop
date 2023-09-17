@@ -284,6 +284,7 @@ extern int out_pot;
 extern std::string init_chg; //  output charge if out_chg > 0, and output every "out_chg" elec step.
 extern std::string init_wfc; 
 extern bool psi_initializer;
+extern bool wfc_dump;
 extern int out_chg;
 
 extern double nelec;

@@ -293,6 +293,7 @@ void Input::Default(void)
     //----------------------------------------------------------
     init_wfc = "atomic";
     psi_initializer = false;
+    wfc_dump = false;
     mem_saver = 0;
     printe = 100; // must > 0
     init_chg = "atomic";
@@ -1185,6 +1186,10 @@ bool Input::Read(const std::string &fn)
         else if (strcmp("psi_initializer", word) == 0)
         {
             read_value(ifs, psi_initializer);
+        }
+        else if (strcmp("wfc_dump", word) == 0)
+        {
+            read_value(ifs, wfc_dump);
         }
         else if (strcmp("mem_saver", word) == 0)
         {

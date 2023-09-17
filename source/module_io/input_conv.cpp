@@ -606,6 +606,7 @@ void Input_Conv::Convert(void)
     GlobalV::init_chg = INPUT.init_chg;
     GlobalV::init_wfc = INPUT.init_wfc;
     GlobalV::psi_initializer = INPUT.psi_initializer;
+    GlobalV::wfc_dump = INPUT.wfc_dump;
     GlobalV::chg_extrap = INPUT.chg_extrap; // xiaohui modify 2015-02-01
     GlobalV::out_chg = INPUT.out_chg;
     GlobalV::nelec = INPUT.nelec;

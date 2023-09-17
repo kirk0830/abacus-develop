@@ -146,7 +146,7 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
 
     if (this->psi != nullptr)
         delete this->psi;
-    if (GlobalV::psi_initializer)
+    if (GlobalV::psi_initializer) // new wavefunction initialization manner
     {
         /* 
            in ESolver_KS_PW::Init(), pseudopotential, numerical orbital files are already read-in, therefore it is possible
@@ -158,10 +158,24 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
         delete this->psi_init->psig;
         this->psi = this->psi_init->allocate(); // allocate psi::Psi<std::complex<double>>* memory for this->psi
         this->initialize_psi();
-        this->psi_init->write_psig();
+        /*
+           The following line can be useful if one wants to dump the initial wavefunctions.
+           Presently it is just for unittest
+        */
+        if(GlobalV::wfc_dump) this->psi_init->write_psig();
     }
-    else
+    else // old wavefunction initialization manner
     {
+        /*
+            wavefunc is an old class that has been here since at least v2.2.2, but then hsolver, esolver are refactored,
+            it is therefore of needed to refactor wavefunc class. the old one is remained here for unittest.
+            allocate() allocates memory for psi, in the new code this is kept
+            init_at_1() calculates spherical Bessel transform of pswfc and save values in GlobalC::tab_at, which is, not
+                used in present release
+            wfcinit() does not initialize wavefunction now, instead, it calculate the mapping from ixy to istick
+            The real initialization was moved to HSolverPW::solve() => updatePskK(ik) => diago_PAO_in_pw_k2() function.
+            —— on the refactor of wavefunc class, Kirk0830
+        */
         this->psi = this->wf.allocate(this->kv.nks, this->kv.ngk.data(), this->pw_wfc->npwk_max);
         //==================================================
         // create GlobalC::ppcell.tab_at , for trial wave functions.
