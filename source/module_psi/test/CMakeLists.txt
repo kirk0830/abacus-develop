@@ -5,3 +5,11 @@ AddTest(
         psi_test.cpp
         ../psi.cpp 
 )
+
+if(ENABLE_LCAO)
+AddTest(
+    TARGET psi_initializer_integrate_test
+    SOURCES
+        integrated_initializer_test.cpp
+)
+endif()

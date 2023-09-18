@@ -65,7 +65,6 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
         The way of calculating GlobalC::ucell.natomwfc is, for each atom, read pswfc and for s, it is 1, for p, it is 3
         , then multiplied by the number of atoms, and then add them together.
     */
-    std::cout << "GlobalV::NLOCAL = " << GlobalV::NLOCAL << std::endl;
 	int prefactor = 1;
     int nbands_actual = 0;
     if(GlobalV::init_wfc == "random") 
@@ -164,7 +163,7 @@ void psi_initializer::write_psig() const
             ofs_psig << "energy band No. " << iband << std::endl;
             for(int ibasis = 0; ibasis < this->psig->get_nbasis(); ibasis++)
             {
-                ofs_psig << (*(this->psig))(iband, ibasis) << " ";
+                ofs_psig << std::setprecision(10) << std::fixed << (*(this->psig))(iband, ibasis) << " ";
             }
             ofs_psig << std::endl;
         }

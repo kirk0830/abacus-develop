@@ -99,23 +99,28 @@ using UcellDeathTest = UcellTest;
 TEST_F(UcellDeathTest, ReadNaoFlzTest)
 {
     std::string fn = "C_gga_8au_100Ry_2s2p1d.orb";
+    // the ichi goes from 1st s, 2nd s, 1st p, 2nd p, 1st d
     ucell->read_nao_flz(0, fn, ofs, &(ucell->atoms[0]));
-    EXPECT_EQ(ucell->atoms[0].n_rgrid, 801);
+    EXPECT_EQ(ucell->atoms[0].n_rgrid[0], 801);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[0][0], 0);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[0][1], 0.01);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[0][800], 8);
+    EXPECT_EQ(ucell->atoms[0].n_rgrid[1], 801);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[1][0], 0);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[1][1], 0.01);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].rgrid[1][800], 8);
+    // data of 1st s
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[0][0], 5.368426038998e-01);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[0][4], 5.386156949024e-01);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[0][800], 0);
+    // data of 2nd s
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[1][0], -6.134205291735e-02);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[1][4], -5.862821438615e-02);
     EXPECT_DOUBLE_EQ(ucell->atoms[0].flz[1][800], 0);
     fn = "H_gga_8au_100Ry_2s1p.orb";
+    // the ichi goes from 1st s, 2nd s, 1st p
     ucell->read_nao_flz(1, fn, ofs, &(ucell->atoms[1]));
-    EXPECT_EQ(ucell->atoms[1].n_rgrid, 801);
+    EXPECT_EQ(ucell->atoms[1].n_rgrid[0], 801);
     EXPECT_DOUBLE_EQ(ucell->atoms[1].rgrid[0][0], 0);
     EXPECT_DOUBLE_EQ(ucell->atoms[1].rgrid[0][1], 0.01);
     EXPECT_DOUBLE_EQ(ucell->atoms[1].rgrid[0][800], 8);

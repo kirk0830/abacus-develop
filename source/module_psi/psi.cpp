@@ -334,7 +334,7 @@ template <typename T, typename Device> void Psi<T, Device>::write_psig(int ik) c
         ofs_psig << "energy band No. " << iband << std::endl;
         for(int ibasis = 0; ibasis < this->get_nbasis(); ibasis++)
         {
-            ofs_psig << this->operator()(iband, ibasis) << " ";
+            ofs_psig<< std::setprecision(10) << std::fixed << this->operator()(iband, ibasis) << " ";
         }
         ofs_psig << std::endl;
     }

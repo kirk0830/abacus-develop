@@ -1,6 +1,6 @@
 INPUT_PARAMETERS
 pseudo_dir .
-orbital_dir ../../../../tests/PP_ORB
+orbital_dir .
 basis_type pw
 ecutwfc 60
 scf_thr 1e-8
