@@ -157,12 +157,6 @@ void ESolver_KS_PW<FPTYPE, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
         */
         delete this->psi_init->psig;
         this->psi = this->psi_init->allocate(); // allocate psi::Psi<std::complex<double>>* memory for this->psi
-        this->initialize_psi();
-        /*
-           The following line can be useful if one wants to dump the initial wavefunctions.
-           Presently it is just for unittest
-        */
-        if(GlobalV::wfc_dump) this->psi_init->write_psig();
     }
     else // old wavefunction initialization manner
     {
@@ -419,6 +413,19 @@ void ESolver_KS_PW<FPTYPE, Device>::beforescf(int istep)
     {
         srho.begin(is, *(this->pelec->charge), this->pw_rho, GlobalC::Pgrid, this->symm);
     }
+    /*
+        after init_rho (in pelec->init_scf), we have rho now.
+        before hamilt2density, we update Hk and initialize psi
+    */
+    if(GlobalV::psi_initializer)
+    {
+        this->initialize_psi();
+        /*
+        The following line can be useful if one wants to dump the initial wavefunctions.
+        Presently it is just for unittest
+        */
+        if(GlobalV::wfc_dump) this->psi_init->write_psig();
+    }
 }
 
 template <typename FPTYPE, typename Device>
@@ -494,12 +501,26 @@ void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
         for (int ik = 0; ik < this->pw_wfc->nks; ik++)
         {
             this->psi->fix_k(ik);
+            phamilt_cg->updateHk(ik);
             psi::Psi<std::complex<double>>* psig = this->psi_init->cal_psig(ik);
             std::vector<double> etatom(psig->get_nbands(), 0.0);
+            //this->psi_init->write_psig(ik);
+            // for nao-employed initialization, need to first diagonalize the band-by-band matrix, get new psig and then copy to psi
+            if (
+                (this->psi_init->get_method().substr(0, 3) == "nao")
+                )
+            {
+                hsolver::DiagoIterAssist<double>::diagH_subspace(
+                    phamilt_cg,
+                    *(psig), *(psig), etatom.data()
+                );
+            }
+            // then adjust dimension from psig to psi
             if (this->psi_init->get_method() != "random")
             {
                 if (GlobalV::KS_SOLVER == "cg")
-                {
+                {   
+                    // diagH_subspace_init will be the function change dimension from natomwfc/nlocal to nbands
                     hsolver::DiagoIterAssist<double>::diagH_subspace_init(
                         phamilt_cg,
                         psig->get_pointer(), psig->get_nbands(), psig->get_nbasis(),
@@ -511,10 +532,8 @@ void ESolver_KS_PW<FPTYPE, Device>::initialize_psi()
             }
             else
             {
-                // seems something wrong here leads to failure of diagonalization
                 if (GlobalV::KS_SOLVER == "cg")
                 {
-                    // must be... the use of "this->psi[0]"
                     hsolver::DiagoIterAssist<double>::diagH_subspace(
                         phamilt_cg,
                         *(psig), *(this->psi), etatom.data()

@@ -172,6 +172,34 @@ void psi_initializer::write_psig() const
     }
 }
 
+void psi_initializer::write_psig(int ik) const
+{
+    std::string filename = "psig_"+std::to_string(ik);
+    std::ofstream ofs_psig;
+    ofs_psig.open(filename+"_kpt.out");
+    ofs_psig << "N.B.: output data is complex, therefore every data will be enclosed by parenthesis." << std::endl;
+    ofs_psig << "psig information" << std::endl;
+    ofs_psig << "number of kpoints: " << this->psig->get_nk() << std::endl;
+    ofs_psig << "number of bands: " << this->psig->get_nbands() << std::endl;
+    ofs_psig << "number of planewaves: " << this->psig->get_nbasis() << std::endl;
+    ofs_psig << "Calculation information" << std::endl;
+    ofs_psig << "method of psi initialization: " << GlobalV::init_wfc << std::endl;
+    ofs_psig << "method of diagonalization: " << GlobalV::KS_SOLVER << std::endl;
+    this->psig->fix_k(ik);
+    ofs_psig << "k point No. " << ik << std::endl;
+    for(int iband = 0; iband < this->psig->get_nbands(); iband++)
+    {
+        ofs_psig << "energy band No. " << iband << std::endl;
+        for(int ibasis = 0; ibasis < this->psig->get_nbasis(); ibasis++)
+        {
+            ofs_psig << std::setprecision(10) << std::fixed << (*(this->psig))(iband, ibasis) << " ";
+        }
+        ofs_psig << std::endl;
+    }
+    ofs_psig << std::endl;
+    ofs_psig.close();
+}
+
 void psi_initializer::print_status(psi::Psi<std::complex<double>>& psi) const
 {
     std::cout << "Current method: " << this->method << std::endl;

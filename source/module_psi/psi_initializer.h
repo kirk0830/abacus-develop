@@ -91,7 +91,8 @@ class psi_initializer
         void set_nbands_complem(int nbands_in) { this->nbands_complem = nbands_in; }
         /// @brief output psig to file, given number of kpoints, bands and basis, diagonalization method. Note: because it is complex number, therefore every number has format (real, imag)
         void write_psig() const;
-
+        /// @brief output psig at given kpoint to file
+        void write_psig(int ik) const;
         // virtual functions, will be implemented in derived classes
 
         // random to complement bands not initialized by pswfc or nao, therefore it is a basic function, or psi_initializer_random will be inherented by all other methods.
