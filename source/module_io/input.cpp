@@ -3440,7 +3440,14 @@ void Input::Check(void)
      && (init_wfc != "file")
      )
     {
-        ModuleBase::WARNING_QUIT("Input", "wrong init_wfc, please use 'atomic' or 'random' or 'file' ");
+        if (this->psi_initializer)
+        {
+            ModuleBase::WARNING_QUIT("Input", "wrong init_wfc, please use 'random'/'atomic'/'nao'/'atomic+random'/'nao+random'");
+        }
+        else
+        {
+            ModuleBase::WARNING_QUIT("Input", "wrong init_wfc, please use 'atomic' or 'random' or 'file' ");
+        }
     }
 
     if (nbands > 100000)

@@ -2,11 +2,7 @@
 #about the lattice structure.
 
 ATOMIC_SPECIES
-Si 1.000 Si_NCSR_ONCVPSP_v0.5_dojo.upf
-#Si.pz-vbc.UPF 	#Element, Mass, Pseudopotential
-
-NUMERICAL_ORBITAL
-./Si_gga_8au_60Ry_2s2p1d.orb
+Si 1.000 Si.pz-vbc.UPF #Element, Mass, Pseudopotential
 
 LATTICE_CONSTANT
 10.2  			#Lattice constant

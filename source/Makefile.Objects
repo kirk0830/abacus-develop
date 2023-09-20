@@ -312,7 +312,9 @@ OBJS_PSI=psi.o\
 OBJS_PSI_INITIALIZER=psi_initializer.o\
                      psi_initializer_random.o\
                      psi_initializer_atomic.o\
+                     psi_initializer_atomic_random.o\
                      psi_initializer_nao.o\
+                     psi_initializer_nao_random.o\
 
 OBJS_PW=fft.o\
     pw_basis.o\

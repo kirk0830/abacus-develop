@@ -39,7 +39,7 @@ struct dngvd_op<FPTYPE, psi::DEVICE_CPU> {
         if (info != 0) {
             std::cout << "Error: xhegvd failed!" << std::endl;
         }
-        //assert(0 == info);
+        assert(0 == info);
 
         delete[] work;
         delete[] rwork;

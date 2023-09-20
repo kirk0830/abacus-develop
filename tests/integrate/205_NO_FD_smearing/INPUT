@@ -9,16 +9,13 @@ pseudo_dir	../../PP_ORB
 orbital_dir	../../PP_ORB
 
 #Parameters (2.Iteration)
-ecutwfc			60
+ecutwfc			20
 scf_thr				1e-8
 scf_nmax			100
 
 
 #Parameters (3.Basis)
-basis_type		pw
-psi_initializer 0
-init_wfc random
-ks_solver dav
+basis_type		lcao
 
 #Parameters (4.Smearing)
 smearing_method		fd

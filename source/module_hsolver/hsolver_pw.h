@@ -29,7 +29,6 @@ class HSolverPW: public HSolver<FPTYPE, Device>
     virtual FPTYPE cal_hsolerror() override;
     virtual FPTYPE set_diagethr(const int istep, const int iter, const FPTYPE drho) override;
     virtual FPTYPE reset_diagethr(std::ofstream& ofs_running, const FPTYPE hsover_error, const FPTYPE drho) override;
-
   protected:
     void initDiagh(const psi::Psi<std::complex<FPTYPE>, Device>& psi_in);
     void endDiagh();

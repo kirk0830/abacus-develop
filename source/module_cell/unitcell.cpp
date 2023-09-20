@@ -1008,7 +1008,7 @@ void UnitCell::cal_nwfc(std::ofstream &log)
 		(GlobalV::BASIS_TYPE=="lcao")
 	  ||(GlobalV::BASIS_TYPE=="lcao_in_pw")
 	  ||(
-			(GlobalV::BASIS_TYPE=="pw")
+            (GlobalV::BASIS_TYPE=="pw")
 		  &&(GlobalV::psi_initializer)
 		  &&(GlobalV::init_wfc.substr(0, 3)=="nao")
 	    )

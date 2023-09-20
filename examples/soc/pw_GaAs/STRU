@@ -2,10 +2,6 @@ ATOMIC_SPECIES
 As 1   As_ONCV_PBE-1.1.upf
 Ga 1   Ga_ONCV_PBE-soc-1.0.upf
 
-NUMERICAL_ORBITAL
-./As_gga_8au_60Ry_2s2p1d.orb
-./Ge_gga_8au_100Ry_2s2p2d.orb
-
 LATTICE_CONSTANT
 1  // add lattice constant, 10.58 ang
 

@@ -613,6 +613,7 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
     {
         srho.begin(is, *(this->pelec->charge), this->pw_rho, GlobalC::Pgrid, this->symm);
     }
+
     // compute magnetization, only for LSDA(spin==2)
     GlobalC::ucell.magnet.compute_magnetization(this->pelec->charge->nrxx,
                                                 this->pelec->charge->nxyz,
@@ -621,6 +622,7 @@ void ESolver_KS_PW<FPTYPE, Device>::hamilt2density(const int istep, const int it
     // deband is calculated from "output" charge density calculated
     // in sum_band
     // need 'rho(out)' and 'vr (v_h(in) and v_xc(in))'
+    
     this->pelec->f_en.deband = this->pelec->cal_delta_eband();
     // if (LOCAL_BASIS) xiaohui modify 2013-09-02
 }
