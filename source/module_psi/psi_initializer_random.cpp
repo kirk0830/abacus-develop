@@ -1,5 +1,7 @@
 #include "psi_initializer_random.h"
+#ifdef __MPI
 #include <mpi.h>
+#endif
 #include "module_base/parallel_global.h"
 #include "module_cell/parallel_kpoints.h"
 
