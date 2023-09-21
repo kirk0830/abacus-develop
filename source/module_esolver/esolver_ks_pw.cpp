@@ -420,11 +420,6 @@ void ESolver_KS_PW<T, Device>::beforescf(int istep)
     if(GlobalV::psi_initializer)
     {
         this->initialize_psi();
-        /*
-        The following line can be useful if one wants to dump the initial wavefunctions.
-        Presently it is just for unittest
-        */
-        if(GlobalV::wfc_dump) this->psi_init->write_psig();
     }
 }
 
