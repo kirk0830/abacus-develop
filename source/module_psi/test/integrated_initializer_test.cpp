@@ -5,6 +5,33 @@
 
 #include <gtest/gtest.h>
 
+/*
+====================
+psi initializer test
+====================
+- Instruction
+    For psi initialization needs several modules, e.g., hsolver (for diagonalizing band representation Hamiltonian matrix), 
+    hamilt (for imposing operators onto psi), ElecState, Potential and Charge (for initializing operators of hamilt), PW_Basis 
+    and PW_Basis_K (for initiailizing Structure_Factor class and psi::Psi), Structure_Factor (for Fourier transform on sum of atom-wise properties), 
+    UnitCell (for calculating Structure_Factor), therefore the tests are designed for random, atomic and nao for two kind of purpose:
+    random: directly comparing between psi values with the old implemented version, will execute ABACUS two times, 
+    one for old version, one for this new version.
+    atomic and nao: new SphericalBesselTransformer implemented, therefore for nearly all spherical Bessel functions, accurancies are improved, 
+    only prepare reference value here, to ensure if other modules changed, the initialization will not be impacted too much and lead to bad initial guess.
+- Tested functions
+    - cal_psig
+      - including implementation in atomic, random, nao cases:
+        - psi_initializer_random::cal_psig
+        - psi_initializer_atomic::cal_psig
+        - psi_initializer_nao::cal_psig
+- need input file
+    - INPUT: random_old, random_new, atomic_new, nao_new
+    - KPT: KPT
+    - STRU: STRU
+    - UPF: Si_NCSR_ONCVPSP_v0.5_dojo.upf
+    - ORB: Si_gga_8au_60Ry_2s2p1d.orb
+*/
+
 class IntegratedInitializerTest : public ::testing::Test {
 protected:
     int error = 0;
@@ -135,12 +162,11 @@ TEST_F(IntegratedInitializerTest, CalPsiGNao) {
     error = std::system("../../../abacus");
     error = std::system("rm ./INPUT");
     std::vector<double> reals_ref = {
-        0.0000005904, -0.0000000000, 0.0000083311, -0.0005825703, -0.0039503908,
-        0.0000000000, 0.0477907663, 0.8852328311, 0.1021402963, 0.0000000000
+        -1.2553e-06,  -7.1728e-05, 0.000112783, -0.000599359, -0.00603285,
+        -0.0164273, 0.14776, 1.16658, 0.14776, -0.0164273
     };
     std::vector<double> imags_ref = {
-        -0.0000002762, -0.0000000000, 0.0000178056, -0.0002111799, 0.0018483616,
-        -0.0000000000, 0.1021402963, 0.3208940657, -0.0477907663, -0.0000000000
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     };
     double* reals_read = new double[reals_ref.size()];
     double* imags_read = new double[imags_ref.size()];
@@ -180,7 +206,7 @@ TEST_F(IntegratedInitializerTest, CalPsiGNao) {
 int main(int argc, char **argv)
 {
     char cwd[1024];
-    getcwd(cwd, sizeof(cwd));
+    std::string return_val = getcwd(cwd, sizeof(cwd));
     std::cout << "present directory: " << cwd << std::endl;
     testing::InitGoogleTest(&argc, argv);
     int result = RUN_ALL_TESTS();
