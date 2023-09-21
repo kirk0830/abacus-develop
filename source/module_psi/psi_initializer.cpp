@@ -97,8 +97,10 @@ psi::Psi<std::complex<double>>* psi_initializer::allocate()
             {
                 for(int ia = 0; ia < GlobalC::ucell.atoms[it].na; ia++)
                 {
+            /* FOR EVERY ATOM */
                     for(int l = 0; l < GlobalC::ucell.atoms[it].nwl + 1; l++)
                     {
+            /* EVERY ZETA FOR (2l+1) ORBS */
                         nbands_local += GlobalC::ucell.atoms[it].l_nchi[l]*(2*l+1);
                     }
                 }

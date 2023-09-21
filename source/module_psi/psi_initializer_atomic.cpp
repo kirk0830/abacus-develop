@@ -13,7 +13,7 @@ psi_initializer_atomic::psi_initializer_atomic(Structure_Factor* sf_in, ModulePW
     }
     if (dim2 == 0)
     {
-        ModuleBase::WARNING_QUIT("psi_initializer_atomic::psi_initializer_atomic", "there is not ANY pseudo atomic orbital read in present system, quit.");
+        ModuleBase::WARNING_QUIT("psi_initializer_atomic::psi_initializer_atomic", "there is not ANY pseudo atomic orbital read in present system, recommand other methods, quit.");
     }
     int dim3 = GlobalV::NQX;
     // allocate memory for ovlp_flzjlq

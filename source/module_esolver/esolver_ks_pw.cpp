@@ -505,17 +505,16 @@ void ESolver_KS_PW<T, Device>::initialize_psi()
             phamilt_cg->updateHk(ik);
             psi::Psi<std::complex<double>>* psig = this->psi_init->cal_psig(ik);
             std::vector<double> etatom(psig->get_nbands(), 0.0);
-            //this->psi_init->write_psig(ik);
-            // for nao-employed initialization, need to first diagonalize the band-by-band matrix, get new psig and then copy to psi
-            if (
-                (this->psi_init->get_method().substr(0, 3) == "nao")
-                )
+            /*
+            if ((this->psi_init->get_method().substr(0, 3) == "nao"))
             {
+                // there is undefined behavior! the old code is not tested and not reliable: wavefunc.cpp
                 hsolver::DiagoIterAssist<std::complex<double>>::diagH_subspace(
                     phamilt_cg,
                     *(psig), *(psig), etatom.data()
                 );
             }
+            */
             // then adjust dimension from psig to psi
             if (this->psi_init->get_method() != "random")
             {
