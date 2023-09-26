@@ -165,8 +165,8 @@ void ESolver_KS_PW<T, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
     }
 
     this->kspw_psi = GlobalV::device_flag == "gpu" || GlobalV::precision_flag == "single"
-                         ? new psi::Psi<T, Device>(this->psi[0]) // <-copy via constructor, static_cast<FPTYPE> used to copy data
-                         : reinterpret_cast<psi::Psi<T, Device>*>(this->psi); // <-simply a alias
+                         ? new psi::Psi<T, Device>(this->psi[0])
+                         : reinterpret_cast<psi::Psi<T, Device>*>(this->psi);
     if (GlobalV::precision_flag == "single")
     {
         ModuleBase::Memory::record("Psi_single", sizeof(T) * this->psi[0].size());
@@ -316,8 +316,23 @@ void ESolver_KS_PW<T, Device>::init_after_vc(Input& inp, UnitCell& ucell)
                                 this->pw_wfc->nz);
         this->pw_wfc->initparameters(false, INPUT.ecutwfc, this->kv.nks, this->kv.kvec_d.data());
         this->pw_wfc->collect_local_pw(inp.erf_ecut, inp.erf_height, inp.erf_sigma);
-        this->wf.init_after_vc(this->kv.nks);
-        this->wf.init_at_1(&this->sf);
+        if(GlobalV::psi_initializer)
+        {
+            if(GlobalV::init_wfc.substr(0, 3) == "nao")
+            {
+                this->psi_init->cal_ovlp_flzjlq(); // for nao, we recalculate the overlap matrix between flz and jlq
+            }
+            else if(GlobalV::init_wfc.substr(0, 6) == "atomic")
+            {
+                this->psi_init->cal_ovlp_pswfcjlq(); // for atomic, we recalculate the overlap matrix between pswfc and jlq
+            }
+        }
+        else
+        {
+            this->wf.init_after_vc(this->kv.nks); // reallocate wanf2, the planewave expansion of lcao
+            this->wf.init_at_1(&this->sf); // re-calculate tab_at, the overlap matrix between atomic pswfc and jlq
+        }
+
     }
 
 #ifdef USE_PAW
