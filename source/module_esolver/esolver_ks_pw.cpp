@@ -61,10 +61,10 @@ ESolver_KS_PW<T, Device>::ESolver_KS_PW()
 #if ((defined __CUDA) || (defined __ROCM))
     if (this->device == psi::GpuDevice)
     {
-        hsolver::createBLAShandle();
-        hsolver::createCUSOLVERhandle();
-        container::op::createBlasHandle();
-        container::op::createCusolverHandle();
+        hsolver::createGpuBlasHandle();
+        hsolver::createGpuSolverHandle();
+        container::op::createGpuBlasHandle();
+        container::op::createGpuSolverHandle();
     }
 #endif
 }
@@ -93,9 +93,9 @@ ESolver_KS_PW<T, Device>::~ESolver_KS_PW()
     {
 #if defined(__CUDA) || defined(__ROCM)
         hsolver::destoryBLAShandle();
-        hsolver::destoryCUSOLVERhandle();
-        container::op::destroyBlasHandle();
-        container::op::destroyCusolverHandle();
+        hsolver::destroyGpuSolverHandle();
+        container::op::destroyGpuBlasHandle();
+        container::op::destroyGpuSolverHandle();
 #endif
         delete reinterpret_cast<psi::Psi<T, Device>*>(this->kspw_psi);
     }
@@ -109,26 +109,34 @@ ESolver_KS_PW<T, Device>::~ESolver_KS_PW()
         this->psi_init = nullptr;
     }
 }
-
 template <typename T, typename Device>
 void ESolver_KS_PW<T, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
 {
-    // cout<<this->pw_rho->nrxx<<endl;
-    // cout<<"before ufft allocate"<<endl;
-
-    // cout<<"after ufft allocate"<<endl;
-
+    if (this->psi != nullptr)
+        delete this->psi;
+    //======================================================
+    // allocate memory for std::complex<double> datatype psi
+    //======================================================
+    /*
+        New psi initializer in ABACUS, Developer's note:
+        Because the calling relationship between ESolver_KS_PW and derived class is
+        complicated, up to upcoming of ABACUS 3.4, we only implement this new psi
+        initialization method for ksdft_pw, which means the routinely used dft theory.
+        For other theories like stochastic DFT, we still use the old method, in future
+        release we will implement the new method for all theories.
+    */
+    if (GlobalV::psi_initializer) // new method
+    {
+        this->psi = this->psi_init->allocate();
+    }
+    else // old method
+    {
+        this->psi = this->wf.allocate(this->kv.nks, this->kv.ngk.data(), this->pw_wfc->npwk_max);
+    }
     //=======================
     // init pseudopotential
     //=======================
     GlobalC::ppcell.init(GlobalC::ucell.ntype, &this->sf, this->pw_wfc);
-
-    //=====================
-    // init hamiltonian
-    // only allocate in the beginning of ELEC LOOP!
-    //=====================
-    // not used anymore
-    // GlobalC::hm.hpw.allocate(this->wf.npwx, GlobalV::NPOL, GlobalC::ppcell.nkb, this->pw_rho->nrxx);
 
     //=================================
     // initalize local pseudopotential
@@ -144,46 +152,18 @@ void ESolver_KS_PW<T, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
 
     GlobalC::ppcell.cal_effective_D();
 
-    if (this->psi != nullptr)
-        delete this->psi;
-    if (GlobalV::psi_initializer) // new wavefunction initialization manner
+    if (!GlobalV::psi_initializer)
     {
-        /* 
-           in ESolver_KS_PW::Init(), pseudopotential, numerical orbital files are already read-in, therefore it is possible
-           to initialize psi here, in the end of Init_GlobalC(), there is a cast to copy data from psi to kspw_psi.
-           because psig in some cases is planewave expansion of pswfc or nao, the dimension is not NBANDS, HSolver is needed
-           to adjust the dimension to psi. Therefore the dataflow becomes: psig -> psi -> kspw_psi
-           —— on the refactor of wavefunc class, Kirk0830
-        */
-        delete this->psi_init->psig;
-        this->psi = this->psi_init->allocate(); // allocate psi::Psi<std::complex<double>>* memory for this->psi
-    }
-    else // old wavefunction initialization manner
-    {
-        /*
-            wavefunc is an old class that has been here since at least v2.2.2, but then hsolver, esolver are refactored,
-            it is therefore of needed to refactor wavefunc class. the old one is remained here for unittest.
-            allocate() allocates memory for psi, in the new code this is kept
-            init_at_1() calculates spherical Bessel transform of pswfc and save values in GlobalC::tab_at, which is, not
-                used in present release
-            wfcinit() does not initialize wavefunction now, instead, it calculate the mapping from ixy to istick
-            The real initialization was moved to HSolverPW::solve() => updatePskK(ik) => diago_PAO_in_pw_k2() function.
-            —— on the refactor of wavefunc class, Kirk0830
-        */
-        this->psi = this->wf.allocate(this->kv.nks, this->kv.ngk.data(), this->pw_wfc->npwk_max);
         //==================================================
         // create GlobalC::ppcell.tab_at , for trial wave functions.
         //==================================================
         this->wf.init_at_1(&this->sf);
-
         //================================
         // Initial start wave functions
         //================================
         this->wf.wfcinit(this->psi, this->pw_wfc);
     }
 
-    // psi initialization should be ealier than this, because in kspw_psi it is, full of heterogeneous calculation supported features.
-    // denghui added 20221116
     this->kspw_psi = GlobalV::device_flag == "gpu" || GlobalV::precision_flag == "single"
                          ? new psi::Psi<T, Device>(this->psi[0]) // <-copy via constructor, static_cast<FPTYPE> used to copy data
                          : reinterpret_cast<psi::Psi<T, Device>*>(this->psi); // <-simply a alias
@@ -191,7 +171,6 @@ void ESolver_KS_PW<T, Device>::Init_GlobalC(Input& inp, UnitCell& cell)
     {
         ModuleBase::Memory::record("Psi_single", sizeof(T) * this->psi[0].size());
     }
-
     ModuleBase::GlobalFunc::DONE(GlobalV::ofs_running, "INIT BASIS");
 }
 
@@ -236,12 +215,13 @@ void ESolver_KS_PW<T, Device>::Init(Input& inp, UnitCell& ucell)
         {
             this->psi_init = new psi_initializer_atomic(&(this->sf), this->pw_wfc);
             // there are things only need to calculate once
-            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            //this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            // not parallelized function, but we have GlobalC now, 
+            // in the future once GlobalC is removed, we will parallelize this function
             this->psi_init->cal_ovlp_pswfcjlq();
         }
         else if(GlobalV::init_wfc == "random")
         {
-            //there is no problem with random, but not so for nao, why?
             this->psi_init = new psi_initializer_random(&(this->sf), this->pw_wfc);
         }
         else if(GlobalV::init_wfc == "nao")
@@ -255,7 +235,9 @@ void ESolver_KS_PW<T, Device>::Init(Input& inp, UnitCell& ucell)
         {
             this->psi_init = new psi_initializer_atomic_random(&(this->sf), this->pw_wfc);
             // there are things only need to calculate once
-            this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            //this->psi_init->set_pseudopot_files(GlobalC::ucell.pseudo_fn);
+            // not parallelized function, but we have GlobalC now, 
+            // in the future once GlobalC is removed, we will parallelize this function
             this->psi_init->cal_ovlp_pswfcjlq();
         }
         else if(GlobalV::init_wfc == "nao+random")

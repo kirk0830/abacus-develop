@@ -255,8 +255,8 @@ int out_pot = 0;
 
 std::string init_chg = "";
 
-std::string init_wfc = "random";
-bool psi_initializer = true;
+std::string init_wfc = "atomic";
+bool psi_initializer = false;
 
 int out_chg = 0;
 double nelec = 0;

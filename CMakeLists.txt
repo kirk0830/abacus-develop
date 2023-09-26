@@ -33,6 +33,7 @@ option(DEBUG_INFO "Print message for developers to debug." OFF)
 # Do not enable it if generated code will run on different CPUs
 option(ENABLE_NATIVE_OPTIMIZATION "Enable compilation optimization for the native machine's CPU type" OFF)
 option(COMMIT_INFO "Print commit information in log" ON)
+option(ENABLE_FFT_TWO_CENTER "Enable FFT-based two-center integral method." ON)
 
 # get commit info
 if(COMMIT_INFO)
@@ -173,6 +174,10 @@ if(ENABLE_LCAO)
     target_link_libraries(${ABACUS_BIN_NAME} ELPA::ELPA)
     add_compile_definitions(__ELPA)
   endif()
+
+  if (ENABLE_FFT_TWO_CENTER)
+      add_compile_definitions(USE_NEW_TWO_CENTER)
+  endif()
 else()
   set(ENABLE_DEEPKS OFF)
   set(ENABLE_LIBRI OFF)
@@ -283,6 +288,7 @@ if(USE_ROCM)
   find_package(HIP REQUIRED)
   find_package(hipfft REQUIRED)
   find_package(hipblas REQUIRED)
+  find_package(hipsolver REQUIRED)
 
   if(HIP_FOUND)
     message(STATUS "Found HIP: " ${HIP_VERSION})
@@ -292,15 +298,13 @@ if(USE_ROCM)
 
   include_directories(
     ${ROCM_PATH}/include
-    ${ROCM_PATH}/hip/include
-    ${ROCM_PATH}/hipfft/include
-    ${ROCM_PATH}/hipblas/include
   )
   target_link_libraries(${ABACUS_BIN_NAME}
-    hip::device
     hip::host
+    hip::device
     hip::hipfft
     roc::hipblas
+    roc::hipsolver
   )
   add_compile_definitions(__ROCM)
   add_compile_definitions(__UT_USE_ROCM)
