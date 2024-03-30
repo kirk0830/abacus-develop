@@ -102,6 +102,7 @@ void ModuleIO::nscf_band(
 			auto delta=kv.kvec_c[ik]-kv.kvec_c[ik-1];
 			klength[ik] = klength[ik-1];
 			klength[ik] += (kv.kl_segids[ik] == kv.kl_segids[ik-1]) ? delta.norm() : 0.0;
+			printf("klength[%d] = %f\n", ik, klength[ik]);
 		}
 		if( kv.isk[ik] == is)
 		{

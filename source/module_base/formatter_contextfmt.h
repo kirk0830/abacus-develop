@@ -69,13 +69,7 @@ namespace formatter
                     this->cache_title_ = std::to_string(value);
                 }
                 else {
-                    // it is a data
-                    if (this->known_context_) {
-                        this->p_phys_fmt_->set_context(this->phys_fmt_[this->icol_]);
-                    }
-                    else {
-                        this->p_phys_fmt_->set_context(this->default_phys_fmt_);
-                    }
+                    this->p_phys_fmt_->set_context(this->phys_fmt_[this->icol_]);
                     Table::add_col(this->cache_title_, (std::vector<std::string>){this->fmt_.format(value)});
                     this->cache_title_ = "";
                     this->fmt_.reset();
