@@ -49,6 +49,29 @@
         // do something
         #endif
     }
+
+    Future demands: HFX q-grid, phonon q-grid
+    Thus it needs a new name, might be "BrillouinZoneSamplingGenerator" or something.
+    bz_sampl.h
+
+    namespace bz_sampl{
+        static int nprocs;
+        static int iproc;
+
+        std::tuple<std::vector<container::Tensor>, std::vector<double>> generate(const int& nspin,
+                                                                                 const std::string& fkpt,
+                                                                                 const int& irank,
+                                                                                 const int& nrank);
+    }
+
+    // in esolver_ks.h
+    std::vector<container::Tensor> kpoints;
+    // in esolver_ks.cpp
+    // let what to be static?
+
+    result = bz_sampl::generate(nspin, fkpt, irank, nrank);
+    kpoints = std::get<0>(result);
+    kweights = std::get<1>(result);
 */
 
 #include <vector>
