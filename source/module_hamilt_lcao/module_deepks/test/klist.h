@@ -51,7 +51,7 @@ private:
 		bool &GAMMA_ONLY_LOCAL,
 		std::ofstream &ofs_warning,
 		std::ofstream &ofs_running);
-    void Monkhorst_Pack(const int *nmp_in,const double *koffset_in,const int tipo);
+    void monkhorst_pack(const int *nmp_in,const double *koffset_in,const int tipo);
     double Monkhorst_Pack_formula( const int &k_type, const double &offset,
                                    const int& n, const int &dim);
 

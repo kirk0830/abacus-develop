@@ -227,7 +227,7 @@ TEST_F(KlistTest, MP)
 	kv->koffset[2] = 0;
 	kv->nspin = 1;
 	int k_type = 0;
-	kv->Monkhorst_Pack(kv->nmp,kv->koffset,k_type);
+	kv->monkhorst_pack(kv->nmp,kv->koffset,k_type);
 	/*
 	std::cout << " " <<std::endl;
 	for (int ik=0;ik<kv->nkstot;ik++)
@@ -244,7 +244,7 @@ TEST_F(KlistTest, MP)
 	kv1->koffset[2] = 1;
 	kv1->nspin = 1;
 	k_type = 1;
-	kv1->Monkhorst_Pack(kv1->nmp,kv1->koffset,k_type);
+	kv1->monkhorst_pack(kv1->nmp,kv1->koffset,k_type);
 	//std::cout << " " <<std::endl;
 	for (int ik=0;ik<kv1->nkstot;ik++)
 	{
@@ -773,6 +773,271 @@ TEST_F(KlistTest, IbzKpointIsMP)
 	GlobalV::ofs_running.close();
 	ClearUcell();
 	remove("tmp_klist_4");
+}
+
+TEST_F(KlistTest, KspacingTompmesh)
+{
+	std::vector<std::vector<double>> bvecs(3);
+	bvecs[0] = std::vector<double>{1.2345,2.3456,3.4567};
+	bvecs[1] = std::vector<double>{4.5678,5.6789,6.7890};
+	bvecs[2] = std::vector<double>{7.8901,8.9012,9.0123};
+	double lat0 = 1.8897261254578281;
+	std::vector<double> kspacing = {0.1,0.2,0.3};
+	std::vector<int> result = kv->kspacing_tompmesh(bvecs,lat0,kspacing);
+	EXPECT_EQ(result.size(),3);
+}
+
+TEST_F(KlistTest, WriteAbacusKline)
+{
+	std::vector<std::vector<double>> kvecs = {
+		{0.0,0.0,0.0},
+		{0.1,0.1,0.1},
+		{0.2,0.2,0.2},
+		{0.3,0.3,0.3}
+	};
+	std::vector<int> nks = {10, 1, 10, 1};
+	std::string result_d = kv->write_abacus_kline("Direct", kvecs, nks);
+	std::string result_c = kv->write_abacus_kline("Cartesian", kvecs, nks);
+	EXPECT_THAT(result_d, testing::HasSubstr("Line_Direct"));
+	EXPECT_THAT(result_d, testing::HasSubstr("    0.0000000000     0.0000000000     0.0000000000 10"));
+	EXPECT_THAT(result_d, testing::HasSubstr("    0.3000000000     0.3000000000     0.3000000000 1"));
+	EXPECT_THAT(result_c, testing::HasSubstr("Line_Cartesian"));
+	EXPECT_THAT(result_c, testing::HasSubstr("    0.0000000000     0.0000000000     0.0000000000 10"));
+	EXPECT_THAT(result_c, testing::HasSubstr("    0.3000000000     0.3000000000     0.3000000000 1"));
+}
+
+TEST_F(KlistTest, WriteAbacusMpkmesh)
+{
+	std::string result = kv->write_abacus_mpkmesh("Gamma", {10, 10, 10}, {0, 0, 0});
+	EXPECT_THAT(result, testing::HasSubstr("Gamma"));
+	EXPECT_THAT(result, testing::HasSubstr("10 10 10 0 0 0"));
+}
+
+TEST_F(KlistTest, SyncKvecBetweencd)
+{
+	kv->nspin = 1;
+	kv->nkstot = 2;
+	kv->nks = 2;
+	kv->renew(kv->nkstot);
+	kv->kvec_d[0].x = 0.0;
+	kv->kvec_d[0].y = 0.0;
+	kv->kvec_d[0].z = 0.0;
+	kv->kvec_d[1].x = 0.1;
+	kv->kvec_d[1].y = 0.1;
+	kv->kvec_d[1].z = 0.1;
+	kv->kvec_c[0].x = 1.0;
+	kv->kvec_c[0].y = 1.0;
+	kv->kvec_c[0].z = 1.0;
+	kv->kvec_c[1].x = 1.1;
+	kv->kvec_c[1].y = 1.1;
+	kv->kvec_c[1].z = 1.1;
+	ModuleBase::Matrix3 G = {1.0, 0.0, 0.0,
+							 0.0, 1.0, 0.0,
+							 0.0, 0.0, 1.0};
+	ModuleBase::Matrix3 R = {1.0, 0.0, 0.0,
+							 0.0, 1.0, 0.0,
+							 0.0, 0.0, 1.0};
+	kv->sync_kvec_betweencd(true, R);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[0].x, 0.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[0].y, 0.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[0].z, 0.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[1].x, 0.1);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[1].y, 0.1);
+	EXPECT_DOUBLE_EQ(kv->kvec_c[1].z, 0.1);
+	kv->kvec_c[0].x = 1.0;
+	kv->kvec_c[0].y = 1.0;
+	kv->kvec_c[0].z = 1.0;
+	kv->kvec_c[1].x = 1.1;
+	kv->kvec_c[1].y = 1.1;
+	kv->kvec_c[1].z = 1.1;
+	kv->sync_kvec_betweencd(false, G);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[0].x, 1.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[0].y, 1.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[0].z, 1.0);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[1].x, 1.1);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[1].y, 1.1);
+	EXPECT_DOUBLE_EQ(kv->kvec_d[1].z, 1.1);
+}
+
+TEST_F(KlistTest, SyncKvecBetweenspin)
+{
+	kv->nspin = 1;
+	kv->nkstot = 2;
+	kv->nks = 2;
+	kv->renew(kv->nkstot);
+	kv->kvec_d[0].x = 0.0;
+	kv->kvec_d[0].y = 0.0;
+	kv->kvec_d[0].z = 0.0;
+	kv->kvec_d[1].x = 0.1;
+	kv->kvec_d[1].y = 0.1;
+	kv->kvec_d[1].z = 0.1;
+	kv->kvec_c[0].x = 1.0;
+	kv->kvec_c[0].y = 1.0;
+	kv->kvec_c[0].z = 1.0;
+	kv->kvec_c[1].x = 1.1;
+	kv->kvec_c[1].y = 1.1;
+	kv->kvec_c[1].z = 1.1;
+	kv->sync_kvec_betweenspin(2);
+	EXPECT_EQ(kv->kvec_c.size(), 4);
+	EXPECT_EQ(kv->kvec_d.size(), 4);
+	for(int i=0;i<2;i++)
+	{
+		EXPECT_DOUBLE_EQ(kv->kvec_c[i].x, kv->kvec_c[i+2].x);
+		EXPECT_DOUBLE_EQ(kv->kvec_c[i].y, kv->kvec_c[i+2].y);
+		EXPECT_DOUBLE_EQ(kv->kvec_c[i].z, kv->kvec_c[i+2].z);
+		EXPECT_DOUBLE_EQ(kv->kvec_d[i].x, kv->kvec_d[i+2].x);
+		EXPECT_DOUBLE_EQ(kv->kvec_d[i].y, kv->kvec_d[i+2].y);
+		EXPECT_DOUBLE_EQ(kv->kvec_d[i].z, kv->kvec_d[i+2].z);
+	}
+}
+
+TEST_F(KlistTest, InterpolateKnodes)
+{
+	std::vector<std::vector<double>> knodes = {
+		{0.0,0.0,0.0},
+		{0.1,0.1,0.1},
+		{0.2,0.2,0.2},
+		{0.3,0.3,0.3}
+	};
+	std::vector<int> nks = {10, 1, 10, 1};
+	std::vector<ModuleBase::Vector3<double>> kvec;
+	std::vector<int> kseg_ids;
+	K_Vectors::interpolate_knodes(knodes, nks, kvec, kseg_ids, kv->nkstot, kv->wk);
+	EXPECT_EQ(kvec.size(), 22);
+	std::vector<ModuleBase::Vector3<double>> kvec_ref;
+	for(int i=0;i<11;i++)
+	{
+		kvec_ref.push_back({i*0.1/10, i*0.1/10, i*0.1/10});
+	}
+	for(int i=0;i<11;i++)
+	{
+		kvec_ref.push_back({i*0.1/10 + 0.2, i*0.1/10 + 0.2, i*0.1/10 + 0.2});
+	}
+	EXPECT_EQ(kseg_ids.size(), 22);
+	std::vector<int> kseg_ids_ref = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+									 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+	for(int i=0;i<22;i++)
+	{
+		EXPECT_DOUBLE_EQ(kvec[i].x, kvec_ref[i].x);
+		EXPECT_DOUBLE_EQ(kvec[i].y, kvec_ref[i].y);
+		EXPECT_DOUBLE_EQ(kvec[i].z, kvec_ref[i].z);
+		EXPECT_EQ(kseg_ids[i], kseg_ids_ref[i]);
+	}
+}
+
+TEST_F(KlistTest, ReadAbacusKpt)
+{
+	std::string k_file = "./support/KPT";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 8*8*8);
+	EXPECT_EQ(kv->kvec_d.size(), 8*8*8);
+	EXPECT_EQ(kv->kvec_c.size(), 8*8*8); // but does not have values
+	EXPECT_TRUE(kv->kd_done);
+	EXPECT_FALSE(kv->kc_done);
+	EXPECT_TRUE(kv->is_mp);
+}
+
+TEST_F(KlistTest, ReadAbacusKpt1)
+{
+	std::string k_file = "./support/KPT1";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 8*8*8);
+	EXPECT_EQ(kv->kvec_d.size(), 8*8*8);
+	EXPECT_EQ(kv->kvec_c.size(), 8*8*8);  // but does not have values
+	EXPECT_TRUE(kv->kd_done);
+	EXPECT_FALSE(kv->kc_done);
+	EXPECT_TRUE(kv->is_mp);
+}
+
+TEST_F(KlistTest, ReadAbacusKpt2)
+{
+	std::string k_file = "./support/KPT2";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 122);
+	EXPECT_EQ(kv->kvec_d.size(), 122);
+	EXPECT_EQ(kv->kvec_c.size(), 0);
+	EXPECT_TRUE(kv->kd_done);
+	EXPECT_FALSE(kv->kc_done);
+	EXPECT_FALSE(kv->is_mp);
+
+	EXPECT_EQ(kv->kl_segids.size(), 122);
+	std::vector<int> kseg_ids_ref;
+	for(int i = 0; i <= 100; i++)
+	{
+		kseg_ids_ref.push_back(0);
+	}
+	for(int i = 101; i <= 121; i++)
+	{
+		kseg_ids_ref.push_back(1);
+	}
+	for(int i = 0; i < 122; i++)
+	{
+		EXPECT_EQ(kv->kl_segids[i], kseg_ids_ref[i]);
+	}
+}
+
+TEST_F(KlistTest, ReadAbacusKpt4)
+{
+	std::string k_file = "./support/KPT4";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 5);
+	EXPECT_EQ(kv->kvec_d.size(), 0);
+	EXPECT_EQ(kv->kvec_c.size(), 5);
+	EXPECT_FALSE(kv->kd_done);
+	EXPECT_TRUE(kv->kc_done);
+	EXPECT_FALSE(kv->is_mp);
+	EXPECT_EQ(kv->kvec_c[0].x, 0.0); EXPECT_EQ(kv->kvec_c[0].y, 0.0); EXPECT_EQ(kv->kvec_c[0].z, 0.0);
+	EXPECT_EQ(kv->kvec_c[1].x, 0.0); EXPECT_EQ(kv->kvec_c[1].y, 0.0); EXPECT_EQ(kv->kvec_c[1].z, 1.0);
+	EXPECT_EQ(kv->kvec_c[2].x, 0.5); EXPECT_EQ(kv->kvec_c[2].y, 0.0); EXPECT_EQ(kv->kvec_c[2].z, 1.0);
+	EXPECT_EQ(kv->kvec_c[3].x, 0.75); EXPECT_EQ(kv->kvec_c[3].y, 0.75); EXPECT_EQ(kv->kvec_c[3].z, 0.0);
+	EXPECT_EQ(kv->kvec_c[4].x, 0.5); EXPECT_EQ(kv->kvec_c[4].y, 0.5); EXPECT_EQ(kv->kvec_c[4].z, 0.5);
+}
+
+TEST_F(KlistTest, ReadAbacusKpt5)
+{
+	/* TestCase line_cartesian */
+	std::string k_file = "./support/KPT5";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 51);
+	EXPECT_EQ(kv->kvec_d.size(), 0);
+	EXPECT_EQ(kv->kvec_c.size(), 51);
+	EXPECT_FALSE(kv->kd_done);
+	EXPECT_TRUE(kv->kc_done);
+	EXPECT_FALSE(kv->is_mp);
+	std::vector<int> kseg_ids_ref(51, 0);
+	for(int i = 0; i < 51; i++)
+	{
+		EXPECT_EQ(kv->kl_segids[i], kseg_ids_ref[i]);
+	}
+}
+
+TEST_F(KlistTest, ReadAbacusKpt6)
+{
+	std::string k_file = "./support/KPT6";
+	kv->nspin = 1;
+	kv->read_abacus_kpt(k_file);
+	EXPECT_EQ(kv->nkstot, 6);
+	EXPECT_EQ(kv->kvec_d.size(), 6);
+	EXPECT_EQ(kv->kvec_c.size(), 0);
+	EXPECT_TRUE(kv->kd_done);
+	EXPECT_FALSE(kv->kc_done);
+	EXPECT_FALSE(kv->is_mp);
+	EXPECT_EQ(kv->kvec_d[0].x, 0.0); EXPECT_EQ(kv->kvec_d[0].y, 0.0); EXPECT_EQ(kv->kvec_d[0].z, 0.0);
+	EXPECT_EQ(kv->kvec_d[1].x, 0.0); EXPECT_EQ(kv->kvec_d[1].y, 0.0); EXPECT_EQ(kv->kvec_d[1].z, 1.0);
+	EXPECT_EQ(kv->kvec_d[2].x, 0.5); EXPECT_EQ(kv->kvec_d[2].y, 0.0); EXPECT_EQ(kv->kvec_d[2].z, 1.0);
+	EXPECT_EQ(kv->kvec_d[3].x, 0.75); EXPECT_EQ(kv->kvec_d[3].y, 0.75); EXPECT_EQ(kv->kvec_d[3].z, 0.0);
+	EXPECT_EQ(kv->kvec_d[4].x, 0.5); EXPECT_EQ(kv->kvec_d[4].y, 0.5); EXPECT_EQ(kv->kvec_d[4].z, 0.5);
+	EXPECT_EQ(kv->kvec_d[5].x, 0.0); EXPECT_EQ(kv->kvec_d[5].y, 0.0); EXPECT_EQ(kv->kvec_d[5].z, 0.0);
+}
+
+TEST_F(KlistTest, BuildKpt)
+{
+
 }
 
 #undef private

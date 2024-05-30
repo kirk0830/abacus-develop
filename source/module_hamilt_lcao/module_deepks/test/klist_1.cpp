@@ -184,7 +184,7 @@ namespace Test_Deepks
 			ifk >> nmp[0] >> nmp[1] >> nmp[2];
 
 			ifk >> koffset[0] >> koffset[1] >> koffset[2];
-			this->Monkhorst_Pack(nmp, koffset, k_type);
+			this->monkhorst_pack(nmp, koffset, k_type);
 		}
 		else if (nkstot > 0)
 		{
@@ -396,7 +396,7 @@ namespace Test_Deepks
 	}
 
 	//add by dwan
-	void K_Vectors::Monkhorst_Pack(const int *nmp_in, const double *koffset_in, const int k_type)
+	void K_Vectors::monkhorst_pack(const int *nmp_in, const double *koffset_in, const int k_type)
 	{
 		const int mpnx = nmp_in[0];
 		const int mpny = nmp_in[1];
