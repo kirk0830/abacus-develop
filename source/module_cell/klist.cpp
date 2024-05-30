@@ -166,295 +166,6 @@ void K_Vectors::renew(const int &kpoint_number)
     return;
 }
 
-std::string K_Vectors::write_abacus_mpkmesh(const std::string& center, 
-                                            const std::vector<int>& nmp, 
-                                            const std::vector<int>& shifts)
-{
-    std::string result = "K_POINTS\n0\n";
-    if((center == "Gamma")||(center == "gamma")) result += "Gamma\n";
-    else if((center == "Monkhorst-Pack")||(center == "MP")||(center == "mp")) result += "Monkhorst-Pack\n";
-    else ModuleBase::WARNING_QUIT("K_Vectors::write_monkhorst_pack","Unknown center type.");
-    result += std::to_string(nmp[0]) + " " + std::to_string(nmp[1]) + " " + std::to_string(nmp[2]) + " ";
-    result += std::to_string(shifts[0]) + " " + std::to_string(shifts[1]) + " " + std::to_string(shifts[2]) + "\n";
-    return result;
-}
-
-std::string K_Vectors::write_abacus_kline(const std::string& scale,
-                               const std::vector<ModuleBase::Vector3<double>>& kvec, 
-                               const std::vector<int>& nks)
-{
-    std::vector<std::vector<double>> tmp(kvec.size(), std::vector<double>(3));
-    for(int i = 0; i < kvec.size(); ++i)
-    {
-        tmp[i][0] = kvec[i].x;
-        tmp[i][1] = kvec[i].y;
-        tmp[i][2] = kvec[i].z;
-    }
-    return this->write_abacus_kline(scale, tmp, nks);
-}
-
-std::string K_Vectors::write_abacus_kline(const std::string& scale,
-                               const std::vector<std::vector<double>>& kvec,
-                               const std::vector<int>& nks)
-{
-    std::string result = "K_POINTS\n";
-    result += std::to_string(kvec.size()) + "\n";
-    if(scale == "Cartesian") result += "Line_Cartesian\n";
-    else if(scale == "Direct") result += "Line_Direct\n";
-    else ModuleBase::WARNING_QUIT("K_Vectors::write_line","Unknown scale type.");
-
-    formatter::ContextFmt fmt;
-    fmt.set_context("vector3d");
-    for(int i = 0; i < kvec.size(); ++i)
-    {
-        fmt << kvec[i][0] << kvec[i][1] << kvec[i][2];
-        result += fmt.str() + " " + std::to_string(nks[i]) + "\n";
-    }
-    return result;
-}
-
-void K_Vectors::read_abacus_kpt(const std::string& fkpt)
-{
-    /*
-    there are two different kinds of KPT file
-    1. SCF mode, always need a uniformed and evenly kpoint mesh:
-        K_POINTS
-        0
-        Gamma
-        16 16 16 0.5 0.5 0.5
-    2. BAND mode, need a list of kpoints:
-        K_POINTS
-        8
-        Line
-        0.0000000000   0.0000000000   0.0000000000  20  # Γ         
-        0.5000000000  -0.5000000000   0.5000000000  20  # H                        
-        0.0000000000   0.0000000000   0.5000000000  20  # N                          
-        0.0000000000   0.0000000000   0.0000000000  20  # Γ                  
-        0.2500000000   0.2500000000   0.2500000000  20  # P                          
-        0.5000000000  -0.5000000000   0.5000000000  1   # H              
-        0.2500000000   0.2500000000   0.2500000000  20  # P              
-        0.0000000000   0.0000000000   0.5000000000  1   # N              
-    */
-    std::ifstream ifs(fkpt);
-    if(!ifs) ModuleBase::WARNING_QUIT("K_Vectors::read_abacus_kpt","Can't open file.");
-    std::string line;
-    std::getline(ifs, line);
-    #ifdef __DEBUG // ABACUS fixed format: the first line must be "K_POINTS"
-    assert (line == "K_POINTS");
-    #endif
-    // the following line may define the number of kpoints
-    std::getline(ifs, line);
-    bool kmesh = (line == "0")? true : false;
-    this->nkstot = kmesh? 0 : std::stoi(line);
-    // the following line determines which mode will kpoints be read in. Available choices
-    // currently supported are: "Gamma", "Monkhorst-Pack", "MP", "mp", along with line mode
-    // "Line_Cartesian" and "Line_Direct". A detailed mapping can be:
-    // User input                 Parse as
-    // "Gamma"/"gamma"            "Gamma", (0+, 0+, 0+) starting point
-    // "Monkhorst-Pack"/"MP"/"mp" "Monkhorst-Pack", gamma point centered mpmesh
-    // "Cartesian"/"C"            "Cartesian", read kpoint coords and weights directly
-    // "Direct"/"D"               "Direct", read kpoint coords and weights directly
-    // "Line_Cartesian"           "Line_Cartesian", read kpoints and generate line segments
-    // "Line_Direct"/"Line"       "Line_Direct", read kpoints and generate line segments
-    std::getline(ifs, line);
-    #ifdef __DEBUG // before reading kpoints, both identifier should be in the state of uninitialized
-    assert (this->kc_done == false);
-    assert (this->kd_done == false);
-    #endif
-    // next read specific kpoint coordinates, for nspin,
-    // if nspin == 2, only half will have valid value and for rest, say the rest part, 
-    // will be copied from the first half.
-    if(kmesh&&((line == "Gamma")||(line == "gamma")||(line == "MP")||(line == "mp")||(line == "Monkhorst-Pack")))
-    {
-        int ktype = (line == "Gamma" || line == "gamma")? 0 : 1;
-        this->is_mp = true; // no matter gamma or mp, it is a Monkhorst-Pack mesh
-        ifs >> this->nmp[0] >> this->nmp[1] >> this->nmp[2];
-        ifs >> this->koffset[0] >> this->koffset[1] >> this->koffset[2];
-        this->monkhorst_pack(this->nmp, this->koffset, ktype);
-    }
-    else if(!kmesh&&((line == "Cartesian")||(line == "C")||(line == "Direct")||(line == "D")))
-    {
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            // use of Vector3 should be avoided as much as possible, since it is not safe.
-            ModuleBase::Vector3<double>* kvec = (line == "Cartesian" || line == "C")? &this->kvec_c[i] : &this->kvec_d[i];
-            // a direct but actually wrong choice is to directly use >>. However, there may be comment lead by symbol #
-            // therefore, get the whole line and pick up the first three numbers with one weight.
-            std::getline(ifs, line);
-            std::istringstream iss(line);
-            iss >> kvec->x >> kvec->y >> kvec->z >> this->wk[i]; // drop the rest of the line
-        }
-        if(line == "Cartesian" || line == "C") this->kc_done = true;
-        else this->kd_done = true;
-    }
-    else if(!kmesh&&((line == "Line_Cartesian")||(line == "Line_Direct")||(line == "Line")))
-    {
-        std::vector<int> nks;
-        std::vector<std::vector<double>> knodes(this->nkstot);
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            ModuleBase::Vector3<double>* kvec = (line == "Line_Cartesian")? &this->kvec_c[i] : &this->kvec_d[i];
-            std::getline(ifs, line);
-            std::istringstream iss(line);
-            knodes[i].resize(3);
-            iss >> knodes[i][0] >> knodes[i][1] >> knodes[i][2] >> nks[i]; // drop the rest of the line
-        }
-        std::vector<ModuleBase::Vector3<double>>* kvec = (line == "Line_Cartesian")? &this->kvec_c : &this->kvec_d;
-        this->interpolate_knodes(knodes, nks, *kvec, this->kl_segids);
-        if(line == "Line_Cartesian") this->kc_done = true;
-        else this->kd_done = true;
-    }
-    else ModuleBase::WARNING_QUIT("K_Vectors::read_abacus_kpt","Unknown kpoint type.");
-}
-
-void K_Vectors::interpolate_knodes(const std::vector<std::vector<double>>& knodes,
-                                   const std::vector<int>& nks,
-                                   std::vector<ModuleBase::Vector3<double>>& kvec,
-                                   std::vector<int>& kseg_ids)
-{
-    kvec.clear();
-    kseg_ids.clear();
-    if(std::all_of(nks.begin(), nks.end(), [](int i){return i == 1;}))
-    {
-        // for some cases, the kline is defined as a list of kpoints and each with a weight of 1
-        // in this case, the kline is actually a list of kpoints
-        for(int i = 0; i < knodes.size(); ++i)
-        {
-            kvec.push_back(ModuleBase::Vector3<double>(knodes[i][0], knodes[i][1], knodes[i][2]));
-        }
-        kseg_ids.resize(kvec.size(), 0); // all kpoints are assumed to be in the same segment
-    }
-    else // a more common case would be...
-    {
-        /*
-            routinely, the kline can be defined in the following language:
-            [kx] [ky] [kz] [including the start but excluding the end, evenly interpolate a number of kpoints]
-            this will also force the last number of the last kpoint to be 1, say only itself, otherwise the
-            delta kx/ky/kz cannot be determined.
-        */
-        #ifdef __DEBUG
-        assert (knodes.size() == nks.size()); // one line must have kx, ky, kz and nk
-        assert (std::all_of(nks.begin(), nks.end(), [](int i){return i > 0;})); // nk value should be valid
-        assert (nks[nks.size()-1] == 1); // the last one should be 1 to define the end of kpath
-        #endif
-        int ikseg = 0;
-        for(int i = 0; i < knodes.size(); ++i) // loop over all defined specical kpoints
-        {
-            if(nks[i] == 1) // only itself
-            {
-                kvec.push_back(ModuleBase::Vector3<double>(knodes[i][0], knodes[i][1], knodes[i][2]));
-                kseg_ids.push_back(ikseg); // the last one is 1, so the previous one is the end of the segment
-                ++ikseg;
-            }
-            else // interpolate
-            {
-                ModuleBase::Vector3<double> start(knodes[i][0], knodes[i][1], knodes[i][2]);
-                ModuleBase::Vector3<double> end(knodes[i+1][0], knodes[i+1][1], knodes[i+1][2]);
-                ModuleBase::Vector3<double> delta = end - start;
-                for(int j = 0; j < nks[i]; ++j)
-                {
-                    kvec.emplace_back(start + delta * double(j) / double(nks[i]));
-                    kseg_ids.push_back(ikseg);
-                }
-            }
-        }
-    }
-    // refresh the value of nks_tot
-    this->nkstot = kvec.size();
-    // refresh weights of kpoints
-    this->wk.clear();
-    this->wk.resize(kvec.size());
-    std::fill(this->wk.begin(), this->wk.end(), 1.0);
-}
-
-void K_Vectors::sync_kvec_betweencd(const bool& direct,
-                                    const ModuleBase::Matrix3& t)
-{
-    if(direct)
-    {
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            this->kvec_c[i] = t * this->kvec_d[i];
-        }
-    }
-    else
-    {
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            this->kvec_d[i] = t * this->kvec_c[i];
-        }
-    }
-}
-
-void K_Vectors::sync_kvec_betweenspin(const int& nspin)
-{
-    this->renew(this->nkstot * nspin);
-    std::copy(this->kvec_c.begin(), this->kvec_c.begin() + this->nkstot, this->kvec_c.begin() + this->nkstot*(nspin - 1));
-    std::copy(this->kvec_d.begin(), this->kvec_d.begin() + this->nkstot, this->kvec_d.begin() + this->nkstot*(nspin - 1));
-}
-
-std::vector<int> K_Vectors::kspacing_tompmesh(const std::vector<std::vector<double>>& bvecs,
-                                            const double& lat0,
-                                            const std::vector<double>& kspacing)
-{
-    #ifdef __DEBUG
-    assert (std::all_of(kspacing.begin(), kspacing.end(), [](double i){return i > 0.0;}));
-    assert (lat0 > 0.0);
-    assert (bvecs.size() == 3);
-    assert (bvecs[0].size() == 3);
-    assert (bvecs[1].size() == 3);
-    assert (bvecs[2].size() == 3);
-    #endif
-    std::vector<double> bnorms(bvecs.size());
-    std::transform(bvecs.begin(), bvecs.end(), bnorms.begin(), [](const std::vector<double>& bvec)
-    {
-        return std::sqrt(std::inner_product(bvec.begin(), bvec.end(), bvec.begin(), 0.0));
-    });
-    std::vector<int> nmp(3);
-    for(int i = 0; i < 3; ++i)
-    {
-        nmp[i] = std::max(1, static_cast<int>(bnorms[i] * ModuleBase::TWO_PI / kspacing[i] / lat0 + 1));
-    }
-    return nmp;
-}
-
-std::vector<int> K_Vectors::kspacing_tompmesh(const ModuleBase::Matrix3& bmat,
-                                   const double& lat0,
-                                   const std::vector<double>& kspacing)
-{
-    std::vector<std::vector<double>> bvecs(3);
-    for(int i = 0; i < 3; ++i) bvecs[i].resize(3);
-    bvecs[0][0] = bmat.e11; bvecs[0][1] = bmat.e12; bvecs[0][2] = bmat.e13;
-    bvecs[1][0] = bmat.e21; bvecs[1][1] = bmat.e22; bvecs[1][2] = bmat.e23;
-    bvecs[2][0] = bmat.e31; bvecs[2][1] = bmat.e32; bvecs[2][2] = bmat.e33;
-    return kspacing_tompmesh(bvecs, lat0, kspacing);
-}
-
-bool K_Vectors::build_kpt(const std::string& fkpt)
-{
-    ModuleBase::TITLE("K_Vectors", "build_kpt");
-    if(GlobalV::MY_RANK != 0) return true;
-    // GlobalV variables should be imported earlier
-    std::string overwrite = "";
-    if(GlobalV::GAMMA_ONLY_LOCAL) overwrite = this->write_abacus_mpkmesh("Gamma", {1, 1, 1}, {0, 0, 0});
-    else if(GlobalV::KSPACING[0] > 0.0)
-    {
-        std::vector<double> kspacing = {GlobalV::KSPACING[0], GlobalV::KSPACING[1], GlobalV::KSPACING[2]};
-        std::vector<int> nmp = this->kspacing_tompmesh(GlobalC::ucell.G, GlobalC::ucell.lat0, kspacing);
-        overwrite = this->write_abacus_mpkmesh("MP", nmp, {0, 0, 0});
-    }
-    if(overwrite != "")
-    {
-        GlobalV::ofs_running << "KPT file overwritten due to user settings in INPUT card." << fkpt << std::endl;
-        std::ofstream ofs(fkpt);
-        ofs << overwrite;
-        ofs.close();
-    }
-    this->read_abacus_kpt(fkpt);
-    this->nkstot_full = this->nks = this->nkstot;
-    return true;
-}
-
 bool K_Vectors::read_kpoints(const std::string &fn)
 {
     ModuleBase::TITLE("K_Vectors", "read_kpoints");
@@ -1820,3 +1531,302 @@ void K_Vectors::set_kup_and_kdw_after_vc(void)
 
     return;
 } // end subroutine set_kup_and_kdw
+
+// REFACTORING K_Vectors functions below >>>
+std::string K_Vectors::write_abacus_mpkmesh(const std::string& center, 
+                                            const std::vector<int>& nmp, 
+                                            const std::vector<int>& shifts)
+{
+    std::string result = "K_POINTS\n0\n";
+    if((center == "Gamma")||(center == "gamma")) result += "Gamma\n";
+    else if((center == "Monkhorst-Pack")||(center == "MP")||(center == "mp")) result += "Monkhorst-Pack\n";
+    else ModuleBase::WARNING_QUIT("K_Vectors::write_monkhorst_pack","Unknown center type.");
+    result += std::to_string(nmp[0]) + " " + std::to_string(nmp[1]) + " " + std::to_string(nmp[2]) + " ";
+    result += std::to_string(shifts[0]) + " " + std::to_string(shifts[1]) + " " + std::to_string(shifts[2]) + "\n";
+    return result;
+}
+
+std::string K_Vectors::write_abacus_kline(const std::string& scale,
+                                          const std::vector<ModuleBase::Vector3<double>>& kvec, 
+                                          const std::vector<int>& nks)
+{
+    std::vector<std::vector<double>> tmp(kvec.size(), std::vector<double>(3));
+    for(int i = 0; i < kvec.size(); ++i)
+    {
+        tmp[i][0] = kvec[i].x;
+        tmp[i][1] = kvec[i].y;
+        tmp[i][2] = kvec[i].z;
+    }
+    return K_Vectors::write_abacus_kline(scale, tmp, nks);
+}
+
+std::string K_Vectors::write_abacus_kline(const std::string& scale,
+                                          const std::vector<std::vector<double>>& kvec,
+                                          const std::vector<int>& nks)
+{
+    std::string result = "K_POINTS\n";
+    result += std::to_string(kvec.size()) + "\n";
+    if(scale == "Cartesian") result += "Line_Cartesian\n";
+    else if(scale == "Direct") result += "Line_Direct\n";
+    else ModuleBase::WARNING_QUIT("K_Vectors::write_line","Unknown scale type.");
+
+    formatter::ContextFmt fmt;
+    fmt.set_context("vector3d");
+    for(int i = 0; i < kvec.size(); ++i)
+    {
+        fmt << kvec[i][0] << kvec[i][1] << kvec[i][2];
+        result += fmt.str() + " " + std::to_string(nks[i]) + "\n";
+    }
+    return result;
+}
+
+void K_Vectors::read_abacus_kpt(const std::string& fkpt)
+{
+    /*
+    there are two different kinds of KPT file
+    1. SCF mode, always need a uniformed and evenly kpoint mesh:
+        K_POINTS
+        0
+        Gamma
+        16 16 16 0.5 0.5 0.5
+    2. BAND mode, need a list of kpoints:
+        K_POINTS
+        8
+        Line
+        0.0000000000   0.0000000000   0.0000000000  20  # Γ         
+        0.5000000000  -0.5000000000   0.5000000000  20  # H                        
+        0.0000000000   0.0000000000   0.5000000000  20  # N                          
+        0.0000000000   0.0000000000   0.0000000000  20  # Γ                  
+        0.2500000000   0.2500000000   0.2500000000  20  # P                          
+        0.5000000000  -0.5000000000   0.5000000000  1   # H              
+        0.2500000000   0.2500000000   0.2500000000  20  # P              
+        0.0000000000   0.0000000000   0.5000000000  1   # N              
+    */
+    std::ifstream ifs(fkpt);
+    if(!ifs) ModuleBase::WARNING_QUIT("K_Vectors::read_abacus_kpt","Can't open file.");
+    std::string line;
+    std::getline(ifs, line);
+    #ifdef __DEBUG // ABACUS fixed format: the first line must be "K_POINTS"
+    assert (line == "K_POINTS");
+    #endif
+    // the following line may define the number of kpoints
+    std::getline(ifs, line);
+    bool kmesh = (line == "0")? true : false;
+    this->nkstot = kmesh? 0 : std::stoi(line);
+    // the following line determines which mode will kpoints be read in. Available choices
+    // currently supported are: "Gamma", "Monkhorst-Pack", "MP", "mp", along with line mode
+    // "Line_Cartesian" and "Line_Direct". A detailed mapping can be:
+    // User input                 Parse as
+    // "Gamma"/"gamma"            "Gamma", (0+, 0+, 0+) starting point
+    // "Monkhorst-Pack"/"MP"/"mp" "Monkhorst-Pack", gamma point centered mpmesh
+    // "Cartesian"/"C"            "Cartesian", read kpoint coords and weights directly
+    // "Direct"/"D"               "Direct", read kpoint coords and weights directly
+    // "Line_Cartesian"           "Line_Cartesian", read kpoints and generate line segments
+    // "Line_Direct"/"Line"       "Line_Direct", read kpoints and generate line segments
+    std::getline(ifs, line);
+    #ifdef __DEBUG // before reading kpoints, both identifier should be in the state of uninitialized
+    assert (this->kc_done == false);
+    assert (this->kd_done == false);
+    #endif
+    // next read specific kpoint coordinates, for nspin,
+    // if nspin == 2, only half will have valid value and for rest, say the rest part, 
+    // will be copied from the first half.
+    if(kmesh&&((line == "Gamma")||(line == "gamma")||(line == "MP")||(line == "mp")||(line == "Monkhorst-Pack")))
+    {
+        int ktype = (line == "Gamma" || line == "gamma")? 0 : 1;
+        this->is_mp = true; // no matter gamma or mp, it is a Monkhorst-Pack mesh
+        ifs >> this->nmp[0] >> this->nmp[1] >> this->nmp[2];
+        ifs >> this->koffset[0] >> this->koffset[1] >> this->koffset[2];
+        this->monkhorst_pack(this->nmp, this->koffset, ktype);
+    }
+    else if(!kmesh&&((line == "Cartesian")||(line == "C")||(line == "Direct")||(line == "D")))
+    {
+        const bool direct = (line == "Direct" || line == "D");
+        this->wk.resize(this->nkstot, 0);
+        if(direct) { this->kvec_d.resize(this->nkstot); }
+        else { this->kvec_c.resize(this->nkstot); }
+        for(int i = 0; i < this->nkstot; ++i)
+        {
+            // use of Vector3 should be avoided as much as possible, since it is not safe.
+            ModuleBase::Vector3<double>& kvec = direct? this->kvec_d[i] : this->kvec_c[i];
+            // a direct but actually wrong choice is to directly use >>. However, there may be comment lead by symbol #
+            // therefore, get the whole line and pick up the first three numbers with one weight.
+            std::getline(ifs, line);
+            std::istringstream iss(line);
+            iss >> kvec.x >> kvec.y >> kvec.z >> this->wk[i]; // drop the rest of the line
+        }
+        if(direct) this->kd_done = true;
+        else this->kc_done = true;
+    }
+    else if(!kmesh&&((line == "Line_Cartesian")||(line == "Line_Direct")||(line == "Line")))
+    {
+        const bool direct = !(line == "Line_Cartesian");
+        std::vector<int> nks;
+        std::vector<std::vector<double>> knodes(this->nkstot);
+        for(int i = 0; i < this->nkstot; ++i)
+        {
+            std::getline(ifs, line);
+            std::istringstream iss(line);
+            knodes[i].resize(3);
+            iss >> knodes[i][0] >> knodes[i][1] >> knodes[i][2];
+            nks.emplace_back();
+            iss >> nks.back();
+        }
+        std::vector<ModuleBase::Vector3<double>>& kvec = direct? this->kvec_d : this->kvec_c;
+        K_Vectors::interpolate_knodes(knodes, nks, kvec, this->kl_segids, this->nkstot, this->wk);
+        if(direct) this->kd_done = true;
+        else this->kc_done = true;
+    }
+    else ModuleBase::WARNING_QUIT("K_Vectors::read_abacus_kpt","Unknown kpoint type.");
+}
+
+void K_Vectors::interpolate_knodes(const std::vector<std::vector<double>>& knodes,
+                                   const std::vector<int>& nks,
+                                   std::vector<ModuleBase::Vector3<double>>& kvec,
+                                   std::vector<int>& kseg_ids,
+                                   int& nkstot,
+                                   std::vector<double>& wk)
+{
+    kvec.clear();
+    kseg_ids.clear();
+    if(std::all_of(nks.begin(), nks.end(), [](int i){return i == 1;}))
+    {
+        // for some cases, the kline is defined as a list of kpoints and each with a weight of 1
+        // in this case, the kline is actually a list of kpoints
+        for(int i = 0; i < knodes.size(); ++i)
+        {
+            kvec.push_back(ModuleBase::Vector3<double>(knodes[i][0], knodes[i][1], knodes[i][2]));
+        }
+        kseg_ids.resize(kvec.size(), 0); // all kpoints are assumed to be in the same segment
+    }
+    else // a more common case would be...
+    {
+        /*
+            routinely, the kline can be defined in the following language:
+            [kx] [ky] [kz] [including the start but excluding the end, evenly interpolate a number of kpoints]
+            this will also force the last number of the last kpoint to be 1, say only itself, otherwise the
+            delta kx/ky/kz cannot be determined.
+        */
+        #ifdef __DEBUG
+        assert (knodes.size() == nks.size()); // one line must have kx, ky, kz and nk
+        assert (std::all_of(nks.begin(), nks.end(), [](int i){return i > 0;})); // nk value should be valid
+        assert (nks[nks.size()-1] == 1); // the last one should be 1 to define the end of kpath
+        #endif
+        int ikseg = 0;
+        for(int i = 0; i < knodes.size(); ++i) // loop over all defined specical kpoints
+        {
+            if(nks[i] == 1) // only itself
+            {
+                kvec.push_back(ModuleBase::Vector3<double>(knodes[i][0], knodes[i][1], knodes[i][2]));
+                kseg_ids.push_back(ikseg); // the last one is 1, so the previous one is the end of the segment
+                ++ikseg;
+            }
+            else // interpolate
+            {
+                ModuleBase::Vector3<double> start(knodes[i][0], knodes[i][1], knodes[i][2]);
+                ModuleBase::Vector3<double> end(knodes[i+1][0], knodes[i+1][1], knodes[i+1][2]);
+                ModuleBase::Vector3<double> delta = end - start;
+                for(int j = 0; j < nks[i]; ++j)
+                {
+                    kvec.emplace_back(start + delta * double(j) / double(nks[i]));
+                    kseg_ids.push_back(ikseg);
+                }
+            }
+        }
+    }
+    // refresh the value of nks_tot
+    nkstot = kvec.size();
+    // refresh weights of kpoints
+    wk.clear();
+    wk.resize(kvec.size());
+    std::fill(wk.begin(), wk.end(), 1.0);
+}
+
+void K_Vectors::sync_kvec_betweencd(const bool& direct,
+                                    const ModuleBase::Matrix3& t)
+{
+    if(direct)
+    {
+        for(int i = 0; i < this->nkstot; ++i)
+        {
+            this->kvec_c[i] = t * this->kvec_d[i];
+        }
+    }
+    else
+    {
+        for(int i = 0; i < this->nkstot; ++i)
+        {
+            this->kvec_d[i] = t * this->kvec_c[i];
+        }
+    }
+}
+
+void K_Vectors::sync_kvec_betweenspin(const int& nspin)
+{
+    this->renew(this->nkstot * nspin);
+    std::copy(this->kvec_c.begin(), this->kvec_c.begin() + this->nkstot, this->kvec_c.begin() + this->nkstot*(nspin - 1));
+    std::copy(this->kvec_d.begin(), this->kvec_d.begin() + this->nkstot, this->kvec_d.begin() + this->nkstot*(nspin - 1));
+}
+
+std::vector<int> K_Vectors::kspacing_tompmesh(const std::vector<std::vector<double>>& bvecs,
+                                            const double& lat0,
+                                            const std::vector<double>& kspacing)
+{
+    #ifdef __DEBUG
+    assert (std::all_of(kspacing.begin(), kspacing.end(), [](double i){return i > 0.0;}));
+    assert (lat0 > 0.0);
+    assert (bvecs.size() == 3);
+    assert (bvecs[0].size() == 3);
+    assert (bvecs[1].size() == 3);
+    assert (bvecs[2].size() == 3);
+    #endif
+    std::vector<double> bnorms(bvecs.size());
+    std::transform(bvecs.begin(), bvecs.end(), bnorms.begin(), [](const std::vector<double>& bvec)
+    {
+        return std::sqrt(std::inner_product(bvec.begin(), bvec.end(), bvec.begin(), 0.0));
+    });
+    std::vector<int> nmp(3);
+    for(int i = 0; i < 3; ++i)
+    {
+        nmp[i] = std::max(1, static_cast<int>(bnorms[i] * ModuleBase::TWO_PI / kspacing[i] / lat0 + 1));
+    }
+    return nmp;
+}
+
+std::vector<int> K_Vectors::kspacing_tompmesh(const ModuleBase::Matrix3& bmat,
+                                              const double& lat0,
+                                              const std::vector<double>& kspacing)
+{
+    std::vector<std::vector<double>> bvecs(3);
+    for(int i = 0; i < 3; ++i) bvecs[i].resize(3);
+    bvecs[0][0] = bmat.e11; bvecs[0][1] = bmat.e12; bvecs[0][2] = bmat.e13;
+    bvecs[1][0] = bmat.e21; bvecs[1][1] = bmat.e22; bvecs[1][2] = bmat.e23;
+    bvecs[2][0] = bmat.e31; bvecs[2][1] = bmat.e32; bvecs[2][2] = bmat.e33;
+    return K_Vectors::kspacing_tompmesh(bvecs, lat0, kspacing);
+}
+
+bool K_Vectors::build_kpt(const std::string& fkpt)
+{
+    ModuleBase::TITLE("K_Vectors", "build_kpt");
+    if(GlobalV::MY_RANK != 0) return true;
+    // GlobalV variables should be imported earlier
+    std::string overwrite = "";
+    if(GlobalV::GAMMA_ONLY_LOCAL) overwrite = this->write_abacus_mpkmesh("Gamma", {1, 1, 1}, {0, 0, 0});
+    else if(GlobalV::KSPACING[0] > 0.0)
+    {
+        std::vector<double> kspacing = {GlobalV::KSPACING[0], GlobalV::KSPACING[1], GlobalV::KSPACING[2]};
+        std::vector<int> nmp = this->kspacing_tompmesh(GlobalC::ucell.G, GlobalC::ucell.lat0, kspacing);
+        overwrite = this->write_abacus_mpkmesh("MP", nmp, {0, 0, 0});
+    }
+    if(overwrite != "")
+    {
+        GlobalV::ofs_running << "KPT file overwritten due to user settings in INPUT card." << fkpt << std::endl;
+        std::ofstream ofs(fkpt);
+        ofs << overwrite;
+        ofs.close();
+    }
+    this->read_abacus_kpt(fkpt);
+    this->nkstot_full = this->nks = this->nkstot;
+    return true;
+}
+// <<< REFACTORING K_Vectors functions above

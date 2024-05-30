@@ -126,6 +126,7 @@ public:
     //get global index for ik
     inline int getik_global(const int& ik) const;
 
+// REFACTORING K_Vectors functions below >>>
 private:
     // newly built functions on refactor to remove GlobalC::Pkpoints and parallel_kpoints class
     K_Vectors(const std::string& fkpt,
@@ -142,30 +143,32 @@ private:
     // read ABACUS KPT file
     void read_abacus_kpt(const std::string& fkpt);
     // from special kpoints specified in KPT file, generate a kpoint-path
-    void interpolate_knodes(const std::vector<std::vector<double>>& knodes, //< [in] special kpoints direct coordinates
-                            const std::vector<int>& nks,                    //< [in] number of kpoints in each segment
-                            std::vector<ModuleBase::Vector3<double>>& kvec, //< [out] kpoints direct coordinates
-                            std::vector<int>& kseg_ids);                    //< [out] segment ids of kpoints
+    static void interpolate_knodes(const std::vector<std::vector<double>>& knodes, //< [in] special kpoints direct coordinates
+                                   const std::vector<int>& nks,                    //< [in] number of kpoints in each segment
+                                   std::vector<ModuleBase::Vector3<double>>& kvec, //< [out] kpoints direct coordinates
+                                   std::vector<int>& kseg_ids,                     //< [out] segment ids of kpoints
+                                   int& nkstot,                                    //< [out] total number of kpoints
+                                   std::vector<double>& wk);                       //< [out] weight of kpoints
     // convert kspacing to exact Monkhorst-Pack mesh dimensions
-    std::vector<int> kspacing_tompmesh(const std::vector<std::vector<double>>& bvecs,    //< [in] reciprocal lattice vectors
+    static std::vector<int> kspacing_tompmesh(const std::vector<std::vector<double>>& bvecs,    //< [in] reciprocal lattice vectors
                                        const double& lat0,                               //< [in] lattice_constant
                                        const std::vector<double>& kspacing);             //< [in] kspacing
     // overloaded version for ModuleBase::Matrix3
-    std::vector<int> kspacing_tompmesh(const ModuleBase::Matrix3& bmat,                  //< [in] reciprocal lattice matrix
+    static std::vector<int> kspacing_tompmesh(const ModuleBase::Matrix3& bmat,                  //< [in] reciprocal lattice matrix
                                        const double& lat0,                               //< [in] lattice_constant
                                        const std::vector<double>& kspacing);             //< [in] kspacing
     // write Monkhorst-Pack kpoints to KPT file
-    std::string write_abacus_mpkmesh(const std::string& center,         //< [in] can be "Gamma" or "Monkhorst-Pack"
+    static std::string write_abacus_mpkmesh(const std::string& center,         //< [in] can be "Gamma" or "Monkhorst-Pack"
                                      const std::vector<int>& nmp,       //< [in] number of Monkhorst-Pack kpoints
                                      const std::vector<int>& shifts);   //< [in] shifts of Monkhorst-Pack kpoints
     // write Line mode kpoints to KPT file
-    std::string write_abacus_kline(const std::string& scale,                             //< [in] can be "Direct" or "Cartesian"
-                                   const std::vector<std::vector<double>>& kvec,         //< [in] kpoints coordinates
-                                   const std::vector<int>& nks);                         //< [in] number of kpoints in each segment
+    static std::string write_abacus_kline(const std::string& scale,                             //< [in] can be "Direct" or "Cartesian"
+                                          const std::vector<std::vector<double>>& kvec,         //< [in] kpoints coordinates
+                                          const std::vector<int>& nks);                         //< [in] number of kpoints in each segment
     // overloaded version for ModuleBase::Vector3, which is not safe and has partially been deprecated by new compilers like icpx
-    std::string write_abacus_kline(const std::string& scale,                             //< [in] can be "Direct" or "Cartesian"
-                                   const std::vector<ModuleBase::Vector3<double>>& kvec, //< [in] kpoints coordinates
-                                   const std::vector<int>& nks);                         //< [in] number of kpoints in each segment
+    static std::string write_abacus_kline(const std::string& scale,                             //< [in] can be "Direct" or "Cartesian"
+                                          const std::vector<ModuleBase::Vector3<double>>& kvec, //< [in] kpoints coordinates
+                                          const std::vector<int>& nks);                         //< [in] number of kpoints in each segment
 
     // Synchronize
     // synchronize between alpha and beta spin. Because kpoint does not distinguish spin physically, this way
@@ -205,6 +208,7 @@ private:
     std::vector<std::vector<double>> kvec_d_;
     std::vector<int> ik2ikibz_; // mapping from kpoint index to irreducible kpoint index
     std::vector<int> ikibz2ik_; // mapping from irreducible kpoint index to kpoint index
+// <<< REFACTORING K_Vectors functions above
 
 private:
     int nspin;

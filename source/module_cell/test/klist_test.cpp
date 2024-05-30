@@ -902,7 +902,7 @@ TEST_F(KlistTest, InterpolateKnodes)
 	std::vector<int> nks = {10, 1, 10, 1};
 	std::vector<ModuleBase::Vector3<double>> kvec;
 	std::vector<int> kseg_ids;
-	kv->interpolate_knodes(knodes, nks, kvec, kseg_ids);
+	K_Vectors::interpolate_knodes(knodes, nks, kvec, kseg_ids, kv->nkstot, kv->wk);
 	EXPECT_EQ(kvec.size(), 22);
 	std::vector<ModuleBase::Vector3<double>> kvec_ref;
 	for(int i=0;i<11;i++)
@@ -999,6 +999,7 @@ TEST_F(KlistTest, ReadAbacusKpt4)
 
 TEST_F(KlistTest, ReadAbacusKpt5)
 {
+	/* TestCase line_cartesian */
 	std::string k_file = "./support/KPT5";
 	kv->nspin = 1;
 	kv->read_abacus_kpt(k_file);
