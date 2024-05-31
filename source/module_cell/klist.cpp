@@ -1416,7 +1416,7 @@ std::string K_Vectors::write_abacus_kline(const std::string& scale,
     else ModuleBase::WARNING_QUIT("K_Vectors::write_line","Unknown scale type.");
     for(int i = 0; i < kvec.size(); ++i)
     {
-        result += FmtCore::format("%20.10f %20.10f %20.10f %d\n", kvec[i][0], kvec[i][1], kvec[i][2], nks[i]);
+        result += FmtCore::format("%16.10f %16.10f %16.10f %d\n", kvec[i][0], kvec[i][1], kvec[i][2], nks[i]);
     }
     return result;
 }
