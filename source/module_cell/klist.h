@@ -96,11 +96,6 @@ public:
     std::vector<int> isk;						// distinguish spin up and down k points
     std::vector<int> ibz2bz;					// mohan added 2009-05-18
 
-    int nks;						// number of k points in this pool(processor, up+dw)
-    int nkstot;						/// total number of k points, equal to nkstot_ibz after reducing k points
-    int nkstot_ibz;             /// number of k points in IBZ
-    int nkstot_full;    /// number of k points in full k mesh
-
     int nmp[3];						// Number of Monhorst-Pack
     std::vector<int> kl_segids;	// index of kline segment
 
@@ -210,7 +205,25 @@ private:
     std::vector<int> ikibz2ik_; // mapping from irreducible kpoint index to kpoint index
 // <<< REFACTORING K_Vectors functions above
 
+public:
+    // Write the simple getter function into one line would be helpful for future maintainment
+    int get_nks() const { return this->nks; }
+    int get_nkstot() const { return this->nkstot; }
+    int get_nkstot_ibz() const { return this->nkstot_ibz; }
+    int get_nkstot_full() const { return this->nkstot_full; }
+
+    // No I cannot understand why are setter functions here. Why need setter functions? who will need them?
+    void set_nks(int value) { this->nks = value; }
+    void set_nkstot(int value) { this->nkstot = value; }
+    void set_nkstot_ibz(int value) { this->nkstot_ibz = value; }
+    void set_nkstot_full(int value) { this->nkstot_full = value; }
+
 private:
+    int nks;						// number of k points in this pool(processor, up+dw)
+    int nkstot;						/// total number of k points, equal to nkstot_ibz after reducing k points
+    int nkstot_ibz;             /// number of k points in IBZ
+    int nkstot_full;    /// number of k points in full k mesh
+    
     int nspin;
     bool kc_done;
     bool kd_done;
