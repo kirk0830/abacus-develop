@@ -50,33 +50,34 @@ void K_Vectors::set(const ModuleSymmetry::Symmetry &symm,         // symmetry mo
                     const std::string &k_file_name,               // input file：KPT file
                     const int& nspin_in,
                     const ModuleBase::Matrix3 &reciprocal_vec,
-                    const ModuleBase::Matrix3 &latvec)
+                    const ModuleBase::Matrix3 &latvec,
+                    std::ofstream& ofs_running)
 {
     ModuleBase::TITLE("K_Vectors", "set");
-	GlobalV::ofs_running << "\n\n\n\n";
-	GlobalV::ofs_running << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
-	GlobalV::ofs_running << " |                                                                    |" << std::endl;
-	GlobalV::ofs_running << " | Setup K-points                                                     |" << std::endl;
-	GlobalV::ofs_running << " | We setup the k-points according to input parameters.               |" << std::endl;
-	GlobalV::ofs_running << " | The reduced k-points are set according to symmetry operations.     |" << std::endl;
-	GlobalV::ofs_running << " | We treat the spin as another set of k-points.                      |" << std::endl;
-	GlobalV::ofs_running << " |                                                                    |" << std::endl;
-	GlobalV::ofs_running << " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
-	GlobalV::ofs_running << "\n\n\n\n\n SETUP K-POINTS" << std::endl;
+	ofs_running << "\n\n\n\n";
+	ofs_running << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
+	ofs_running << " |                                                                    |" << std::endl;
+	ofs_running << " | Setup K-points                                                     |" << std::endl;
+	ofs_running << " | We setup the k-points according to input parameters.               |" << std::endl;
+	ofs_running << " | The reduced k-points are set according to symmetry operations.     |" << std::endl;
+	ofs_running << " | We treat the spin as another set of k-points.                      |" << std::endl;
+	ofs_running << " |                                                                    |" << std::endl;
+	ofs_running << " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+	ofs_running << "\n\n\n\n\n SETUP K-POINTS" << std::endl;
 
-	this->nspin = (this->nspin==4)? 1: nspin_in;
-	ModuleBase::GlobalFunc::OUT(GlobalV::ofs_running, "nspin", nspin_in);
+	this->nspin = (this->nspin == 4)? 1: nspin_in; // this is very strange that set nspin to 1 if nspin is 4.
+	ModuleBase::GlobalFunc::OUT(ofs_running, "nspin", nspin_in);
 
     // read KPT file and generate K-point grid
 	bool read_succesfully = this->read_kpoints(k_file_name);
 #ifdef __MPI
 	Parallel_Common::bcast_bool(read_succesfully);
 #endif
-	if(!read_succesfully) ModuleBase::WARNING_QUIT("K_Vectors::set","Something wrong while reading KPOINTS.");
+	if(!read_succesfully) ModuleBase::WARNING_QUIT("K_Vectors::set", "Something wrong while reading KPOINTS.");
 
     // output kpoints file
-    std::string skpt1="";
-    std::string skpt2="";
+    std::string skpt1;
+    std::string skpt2;
 
     // (2)
     //only berry phase need all kpoints including time-reversal symmetry!
@@ -122,43 +123,31 @@ void K_Vectors::set(const ModuleSymmetry::Symmetry &symm,         // symmetry mo
     // Complement the coordinates of k point
     this->set_both_kvec(reciprocal_vec, latvec, skpt2);
 
-	if(GlobalV::MY_RANK==0)
+	if(GlobalV::MY_RANK == 0)
 	{
         // output kpoints file
         std::stringstream skpt;
         skpt << GlobalV::global_readin_dir << "kpoints" ;
-	    std::ofstream ofkpt( skpt.str().c_str()); // clear kpoints
+	    std::ofstream ofkpt(skpt.str().c_str()); // clear kpoints
         ofkpt << skpt2 <<skpt1;
         ofkpt.close();
     }
 
-  // degeneracy
-	int deg = (GlobalV::NSPIN == 1)? 2: 1; // GlobalV::NSPIN is not deemed to check here whether it is 1, 2, or 4 or illegal value.
-  assert(GlobalV::NSPIN == 1||GlobalV::NSPIN == 2||GlobalV::NSPIN == 4);
+    // degeneracy
+	const int deg = (GlobalV::NSPIN == 1)? 2: 1; // GlobalV::NSPIN is not deemed to check here whether it is 1, 2, or 4 or illegal value.
+    assert(GlobalV::NSPIN == 1||GlobalV::NSPIN == 2||GlobalV::NSPIN == 4);
   
 	this->normalize_wk(deg);
-
-    // It's very important in parallel case,
-    // firstly do the mpi_k() and then
-    // do set_kup_and_kdw()
-	GlobalC::Pkpoints.kinfo(nkstot);    //assign k points to several process pools
+	GlobalC::Pkpoints.kinfo(nkstot);
 #ifdef __MPI
-    // distribute K point data to the corresponding process
-    this->mpi_k();//2008-4-29
+    this->mpi_k();
 #endif
-
-    // set the k vectors for the up and down spin
     this->set_kup_and_kdw();
-
     this->print_klists(GlobalV::ofs_running);
-
-	//std::cout << " NUMBER OF K-POINTS   : " << nkstot << std::endl;
 
 #ifdef USE_PAW
     GlobalC::paw_cell.set_isk(nks,isk.data());
 #endif
-
-    return;
 }
 
 // 1.reset the size of the K-point container according to nspin and nkstot 
@@ -952,15 +941,10 @@ void K_Vectors::set_both_kvec(const ModuleBase::Matrix3 &G, const ModuleBase::Ma
     {
         for (int i = 0;i < nkstot;i++)
         {
-//wrong!!   kvec_c[i] = G * kvec_d[i];
-// mohan fixed bug 2010-1-10
 			if( std::abs(kvec_d[i].x) < 1.0e-10 ) kvec_d[i].x = 0.0;
 			if( std::abs(kvec_d[i].y) < 1.0e-10 ) kvec_d[i].y = 0.0;
 			if( std::abs(kvec_d[i].z) < 1.0e-10 ) kvec_d[i].z = 0.0;
-
 			kvec_c[i] = kvec_d[i] * G;
-
-			// mohan add2012-06-10
 			if( std::abs(kvec_c[i].x) < 1.0e-10 ) kvec_c[i].x = 0.0;
 			if( std::abs(kvec_c[i].y) < 1.0e-10 ) kvec_c[i].y = 0.0;
 			if( std::abs(kvec_c[i].z) < 1.0e-10 ) kvec_c[i].z = 0.0;
@@ -972,16 +956,7 @@ void K_Vectors::set_both_kvec(const ModuleBase::Matrix3 &G, const ModuleBase::Ma
     else if (kc_done && !kd_done)
     {
         ModuleBase::Matrix3 RT = R.Transpose();
-        for (int i = 0;i < nkstot;i++)
-        {
-//			std::cout << " ik=" << i
-//				<< " kvec.x=" << kvec_c[i].x
-//				<< " kvec.y=" << kvec_c[i].y
-//				<< " kvec.z=" << kvec_c[i].z << std::endl;
-//wrong!            kvec_d[i] = RT * kvec_c[i];
-// mohan fixed bug 2011-03-07
-            kvec_d[i] = kvec_c[i] * RT;
-        }
+        for (int i = 0;i < nkstot;i++) { kvec_d[i] = kvec_c[i] * RT; }
         kd_done = true;
     }
     std::string table;
@@ -997,7 +972,7 @@ void K_Vectors::set_both_kvec(const ModuleBase::Matrix3 &G, const ModuleBase::Ma
 	if(GlobalV::MY_RANK==0)
 	{
         std::stringstream ss;
-        ss << " " << std::setw(40) <<"nkstot now" << " = " << nkstot << std::endl;
+        ss << " " << std::setw(40) <<"nkstot now  = " << nkstot << std::endl;
         ss << table << std::endl;
         skpt = ss.str();
 	}
@@ -1009,24 +984,10 @@ void K_Vectors::normalize_wk(const int &degspin)
 {
 	if(GlobalV::MY_RANK!=0) return;
     double sum = 0.0;
-
-    for (int ik = 0;ik < nkstot;ik++)
-    {
-        sum += this->wk[ik];
-    }
-	assert(sum>0.0);
-
-    for (int ik = 0;ik < nkstot;ik++)
-    {
-        this->wk[ik] /= sum;
-    }
-
-    for (int ik = 0;ik < nkstot;ik++)
-    {
-        this->wk[ik] *= degspin;
-    }
-
-    return;
+    for (int ik = 0; ik < nkstot; ik++) { sum += this->wk[ik]; }
+	assert(sum > 0.0);
+    for (int ik = 0; ik < nkstot; ik++) { this->wk[ik] /= sum; }
+    for (int ik = 0; ik < nkstot; ik++) { this->wk[ik] *= degspin; }
 }
 
 #ifdef __MPI
@@ -1035,20 +996,15 @@ void K_Vectors::mpi_k(void)
 	ModuleBase::TITLE("K_Vectors","mpi_k");
 
     Parallel_Common::bcast_bool(kc_done);
-
     Parallel_Common::bcast_bool(kd_done);
 
     Parallel_Common::bcast_int(nspin);
-
     Parallel_Common::bcast_int(nkstot);
-
     Parallel_Common::bcast_int(nkstot_full);
-
     Parallel_Common::bcast_int(nmp, 3);
 
     kl_segids.resize(nkstot);
     Parallel_Common::bcast_int(kl_segids.data(), nkstot);
-
     Parallel_Common::bcast_double(koffset, 3);
 
     this->nks = GlobalC::Pkpoints.nks_pool[GlobalV::MY_POOL];
@@ -1205,7 +1161,6 @@ void K_Vectors::print_klists(std::ofstream &ofs)
                                  i+1, this->kvec_d[i].x, this->kvec_d[i].y, this->kvec_d[i].z, this->wk[i]);
 	}
     GlobalV::ofs_running << "\n" << table << std::endl;
-    return;
 }
 
 //LiuXh add a new function here,
@@ -1224,16 +1179,7 @@ void K_Vectors::set_after_vc(
     ModuleBase::GlobalFunc::OUT(GlobalV::ofs_running,"nspin",nspin);
 
     this->set_both_kvec_after_vc(reciprocal_vec, latvec);
-    //this->set_both_kvec(reciprocal_vec, latvec);
-
-    //Since the number of kpoints is not changed, we do not need to do the following.
-    // this->mpi_k_after_vc(); 
-
-    // this->set_kup_and_kdw_after_vc();
-
     this->print_klists(GlobalV::ofs_running);
-
-    return;
 }
 
 //LiuXh add a new function here,
@@ -1340,16 +1286,7 @@ void K_Vectors::set_both_kvec_after_vc(const ModuleBase::Matrix3 &G, const Modul
     else if (kc_done && !kd_done)
     {
         ModuleBase::Matrix3 RT = R.Transpose();
-        for (int i = 0;i < nks;i++)
-        {
-//			std::cout << " ik=" << i
-//				<< " kvec.x=" << kvec_c[i].x
-//				<< " kvec.y=" << kvec_c[i].y
-//				<< " kvec.z=" << kvec_c[i].z << std::endl;
-//wrong!            kvec_d[i] = RT * kvec_c[i];
-// mohan fixed bug 2011-03-07
-            kvec_d[i] = kvec_c[i] * RT;
-        }
+        for (int i = 0;i < nks;i++) { kvec_d[i] = kvec_c[i] * RT; }
         kd_done = true;
     }
     std::string table;
@@ -1516,7 +1453,7 @@ void K_Vectors::read_abacus_kpt(const std::string& fkpt)
     // will be copied from the first half.
     if(kmesh&&((line == "Gamma")||(line == "gamma")||(line == "MP")||(line == "mp")||(line == "Monkhorst-Pack")))
     {
-        int ktype = (line == "Gamma" || line == "gamma")? 0 : 1;
+        const int ktype = (line == "Gamma" || line == "gamma")? 0 : 1;
         this->is_mp = true; // no matter gamma or mp, it is a Monkhorst-Pack mesh
         ifs >> this->nmp[0] >> this->nmp[1] >> this->nmp[2];
         ifs >> this->koffset[0] >> this->koffset[1] >> this->koffset[2];
@@ -1630,17 +1567,11 @@ void K_Vectors::sync_kvec_betweencd(const bool& direct,
 {
     if(direct)
     {
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            this->kvec_c[i] = t * this->kvec_d[i];
-        }
+        for(int i = 0; i < this->nkstot; ++i) { this->kvec_c[i] = t * this->kvec_d[i]; }
     }
     else
     {
-        for(int i = 0; i < this->nkstot; ++i)
-        {
-            this->kvec_d[i] = t * this->kvec_c[i];
-        }
+        for(int i = 0; i < this->nkstot; ++i) { this->kvec_d[i] = t * this->kvec_c[i]; }
     }
 }
 
@@ -1652,8 +1583,8 @@ void K_Vectors::sync_kvec_betweenspin(const int& nspin)
 }
 
 std::vector<int> K_Vectors::kspacing_tompmesh(const std::vector<std::vector<double>>& bvecs,
-                                            const double& lat0,
-                                            const std::vector<double>& kspacing)
+                                              const double& lat0,
+                                              const std::vector<double>& kspacing)
 {
     #ifdef __DEBUG
     assert (std::all_of(kspacing.begin(), kspacing.end(), [](double i){return i > 0.0;}));

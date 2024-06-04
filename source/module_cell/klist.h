@@ -1,79 +1,5 @@
 #ifndef K_VECTORS_H
 #define K_VECTORS_H
-
-/*
-    On the refactor to remove GlobalV and GlobalC from class implementation
-    2024/03/30 Kirk0830
-
-    What IS kpoint?
-    kpoint remarks translational symmetry of a crystal wavefunction. Each kpoint represents a translational
-    symmetry that the wavefunction can only strictly recover itself after a specific translation operation.
-    A more modern understanding is the translational operator and Hamiltonian operator is commutable, thus
-    the eigenstates of the translational operator can be used to linearly combined to form the eigenstates of
-    Hamiltonian operator.
-
-    For programming, what can kpoint class have?
-    0. Basic
-    kpoint class is for storing kpoint related information, certainly it should have functionalities to read
-    and even write ABACUS KPT files. Therefore it is a class, if compactly impelemented, it should hold the
-    kpoint coordinates data, and have methods for I/O the kpoint coordinates.
-    Comparatively the old implementation let kpoint know about nspin, the number of spin channels. However
-    it is, totally unaccpectable, because the translational symmetry has nothing related to the spin symmetry.
-
-    1. Symmetry: kpoint reduction, irreducible Brillouin zone
-    More specifically, the import of kpoints from external files, should be accompied with a kpoint processing,
-    such as the reduction of kpoints by symmetry operations. 
-    Then it comes to the question "How to determine and reduce the number of kpoints according to symmetry".
-    In symmetry module, there are symmetrical operations instantiated according to the symmetry detected by
-    program. Imposing these operations on kpoints, if any two kpoints are equivalent, then they are the same,
-    and one of them should be removed.
-
-    2. Parallelization
-    At least for planewave, the parallelization on kpoints is natural. Prsent parallelization strategy is to
-    distribute kpoints by simple % and // way.
-    
-    Regulations on implementing MPI related functions:
-    1. no matter if it is really MPI environment, always keep the workflow strictly unchanged, and if it is
-    non-MPI, then some functions are left empty but they are still be called in workflow. Which means it is
-    bad to implement functions like:
-    #ifdef __MPI
-    void mpi_k()
-    {
-        // do something
-    }
-    #endif
-    , it is recommended to implement like:
-    void mpi_k()
-    {
-        #ifdef __MPI
-        // do something
-        #endif
-    }
-
-    Future demands: HFX q-grid, phonon q-grid
-    Thus it needs a new name, might be "BrillouinZoneSamplingGenerator" or something.
-    bz_sampl.h
-
-    namespace bz_sampl{
-        static int nprocs;
-        static int iproc;
-
-        std::tuple<std::vector<container::Tensor>, std::vector<double>> generate(const int& nspin,
-                                                                                 const std::string& fkpt,
-                                                                                 const int& irank,
-                                                                                 const int& nrank);
-    }
-
-    // in esolver_ks.h
-    std::vector<container::Tensor> kpoints;
-    // in esolver_ks.cpp
-    // let what to be static?
-
-    result = bz_sampl::generate(nspin, fkpt, irank, nrank);
-    kpoints = std::get<0>(result);
-    kweights = std::get<1>(result);
-*/
-
 #include <vector>
 
 #include "module_base/global_function.h"
@@ -106,7 +32,8 @@ public:
              const std::string &k_file_name,
              const int& nspin,
              const ModuleBase::Matrix3 &reciprocal_vec,
-             const ModuleBase::Matrix3 &latvec);
+             const ModuleBase::Matrix3 &latvec,
+             std::ofstream&);
 
     void ibz_kpoint(const ModuleSymmetry::Symmetry &symm, 
                     bool use_symm,std::string& skpt, 
@@ -184,9 +111,7 @@ private:
     {
         std::vector<std::vector<double>> kvecs(iks.size());
         std::transform(iks.begin(), iks.end(), kvecs.begin(), [&](const int& ik)
-        {
-            return kvec(ik, direct, irreducible);
-        });
+        { return kvec(ik, direct, irreducible); });
         return kvecs;
     }
     std::vector<double> kvec(const int& ik,
