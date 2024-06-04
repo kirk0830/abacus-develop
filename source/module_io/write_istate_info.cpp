@@ -17,11 +17,11 @@ void ModuleIO::write_istate_info(const ModuleBase::matrix &ekb,const ModuleBase:
         ofsi.close();
     }
 
-    for (int ip = 0; ip < GlobalV::KPAR; ip++)
+    for (int ip = 0; ip < GlobalV::KPAR; ip++) // loop over kpool
     {
 #ifdef __MPI
         MPI_Barrier(MPI_COMM_WORLD);
-        if (GlobalV::MY_POOL == ip)
+        if (GlobalV::MY_POOL == ip) // if meet the present pool
         {
             if (GlobalV::RANK_IN_POOL != 0 || GlobalV::MY_STOGROUP != 0 ) continue;
 #endif
@@ -77,9 +77,9 @@ void ModuleIO::write_istate_info(const ModuleBase::matrix &ekb,const ModuleBase:
             }
             ofsi2.close();
 #ifdef __MPI
-        }
+        } // else do nothing
 #endif
-    }
+    } // end of KPAR loop, or say the loop on kpools
 	ModuleBase::timer::tick("ModuleIO", "write_istate_info");
 	return;
 }

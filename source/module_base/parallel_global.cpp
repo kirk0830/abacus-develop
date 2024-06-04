@@ -345,8 +345,10 @@ void Parallel_Global::init_pools(void)
 #ifdef __MPI
 void Parallel_Global::divide_pools(void)
 {
-    if (GlobalV::NPROC < GlobalV::KPAR)
-    {
+    // this function is for dividing nprocessors into different groups in different levels
+    if (GlobalV::NPROC < GlobalV::KPAR) // about the kpoint pool dividing. If there is not enough
+    {                                   // number of processors, then will fail. It means that dividing
+                                        // number of kpoint pools more than the number of processors.
         std::cout<<"\n NPROC=" << GlobalV::NPROC << " KPAR=" << GlobalV::KPAR;
         std::cout<<"Error : Too many pools !"<<std::endl;
         exit(1);
