@@ -230,7 +230,24 @@ void RadialProjection::_do_mask_on_radial(const int nr1,
                                           const double* mask,
                                           double* out)
 {
-    /* the key here is to avoid any float-point overflow */
+    // wm(r) = w(r)/m(r), in which w(r) is the function to "mask" and m(r) is the so-called mask function
+    // the mask function is rescaled so that r ranges from 0 to 1
+
+    // first, interpolate the mask function to the r grid
+    std::vector<double> rtemp_(nr1, 0.0);
+    const double dr = 1.0/static_cast<double>(nr2-1);
+    std::iota(rtemp_.begin(), rtemp_.end(), 0);
+    std::for_each(rtemp_.begin(), rtemp_.end(), [dr](double& x){x *= dr;});
+    ModuleBase::CubicSpline mask_spline_(nr2, rtemp_.data(), mask);
+    std::vector<double> mask_(nr1);
+    mask_spline_.eval(nr1, r, mask_.data());
+    
+    // then, do the division
+    for(int i = 0; i < nr1; i++)
+    {
+        out[i] = in[i]/mask_[i];
+        assert(std::isfinite(out[i]));
+    }
 }
 
 /**
