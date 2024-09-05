@@ -26,7 +26,7 @@ void FR_overlap<T>::set_parameters(
     this->ucell = ucell_in;
     this->FR_container = new hamilt::HContainer<T>(paraV);
     this->radial_grid_num = radial_grid_num;
-    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(degree);
+    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(degree);
     this->Leb_grid->generate_grid_points();
     this->initialize_FR(GridD_in, paraV);
 }
@@ -38,7 +38,7 @@ FR_overlap<T>::FR_overlap(const FR_overlap<T>& FR_in)
     this->ucell = FR_in.ucell;
     this->FR_container = new hamilt::HContainer<T>(*(FR_in.FR_container));
     this->radial_grid_num = FR_in.radial_grid_num;
-    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(FR_in.Leb_grid->degree);
+    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(FR_in.Leb_grid->degree);
     this->Leb_grid->generate_grid_points();
 }
 
@@ -49,7 +49,7 @@ FR_overlap<T>::FR_overlap(FR_overlap<T>&& FR_in)
     this->ucell = FR_in.ucell;
     this->FR_container = std::move(FR_in.FR_container);
     this->radial_grid_num = FR_in.radial_grid_num;
-    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(FR_in.Leb_grid->degree);
+    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(FR_in.Leb_grid->degree);
     this->Leb_grid->generate_grid_points();
 }
 
@@ -72,22 +72,25 @@ void FR_overlap<T>::initialize_FR(Grid_Driver* GridD, const Parallel_Orbitals* p
 {
     ModuleBase::TITLE("FR_overlap", "initialize_FR");
     ModuleBase::timer::tick("FR_overlap", "initialize_FR");
-    for (int iat1 = 0; iat1 < ucell->nat; iat1++)
+    for (int iat1 = 0; iat1 < ucell->nat; iat1++) // loop over all atoms
     {
         auto tau1 = ucell->get_tau(iat1);
         int T1, I1;
+        // get present atom the (it, ia) index, it indexes the type, ia indexes the atom within type
         ucell->iat2iait(iat1, &I1, &T1);
         AdjacentAtomInfo adjs;
+        // use grid driver to find adjacent atoms
         GridD->Find_atom(*ucell, tau1, T1, I1, &adjs);
-        for (int ad = 0; ad < adjs.adj_num + 1; ++ad)
+        for (int ad = 0; ad < adjs.adj_num + 1; ++ad) // then for all adj atoms
         {
             const int T2 = adjs.ntype[ad];
             const int I2 = adjs.natom[ad];
-            int iat2 = ucell->itia2iat(T2, I2);
+            int iat2 = ucell->itia2iat(T2, I2); // again, get (it, ia) index
             if (paraV->get_row_size(iat1) <= 0 || paraV->get_col_size(iat2) <= 0)
-            {
-                continue;
+            { // a not good encapsulation of Parallel_Orbitals class, but presently it means
+                continue; // the atom is not partitioned on present processor...
             }
+            // otherwise, if two atoms on present processor are valid
             const ModuleBase::Vector3<int>& R_index = adjs.box[ad];
             // choose the real adjacent atoms
             const LCAO_Orbitals& orb = LCAO_Orbitals::get_const_instance();
@@ -98,13 +101,14 @@ void FR_overlap<T>::initialize_FR(Grid_Driver* GridD, const Parallel_Orbitals* p
                 >= orb.Phi[T1].getRcut() + orb.Phi[T2].getRcut())
             {
                 continue;
-            }
+            } // filter again: what are real atom-pairs
             hamilt::AtomPair<T> tmp(iat1, iat2, R_index.x, R_index.y, R_index.z, paraV);
-            FR_container->insert_pair(tmp);
+            FR_container->insert_pair(tmp); // register the atom-pair
         }
-    }
+    } // after record all atom-pairs in FR_container...
     // allocate the memory of BaseMatrix in FR_container, and set the new values to zero
-    FR_container->allocate(nullptr, true);
+    FR_container->allocate(nullptr /* allocate memory for each BaseMatrix */, 
+                           true /* if_zero*/);
     ModuleBase::timer::tick("FR_overlap", "initialize_FR");
 }
 
@@ -161,9 +165,9 @@ void FR_overlap<T>::cal_FR_IJR(const int& iat1, const int& iat2, const Parallel_
     // 2 for magnetic (one Hamiltonian matrix has both spin-up and spin-down)
     const int npol = this->ucell->get_npol();
 
-    const int* iw2l1 = atom1.iw2l;
-    const int* iw2n1 = atom1.iw2n;
-    const int* iw2m1 = atom1.iw2m;
+    const int* iw2l1 = atom1.iw2l; // map from index of orbital to angular momentum
+    const int* iw2n1 = atom1.iw2n; // map from index of orbital to zeta
+    const int* iw2m1 = atom1.iw2m; // map from index of orbital to magnetic quantum number
     const int* iw2l2 = atom2.iw2l;
     const int* iw2n2 = atom2.iw2n;
     const int* iw2m2 = atom2.iw2m;

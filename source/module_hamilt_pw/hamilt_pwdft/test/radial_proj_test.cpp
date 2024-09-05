@@ -120,7 +120,7 @@ TEST(RadialProjectionTest, BuildForwardMapTest)
 TEST(RadialProjectionTest, MaskfunctionGenerationTest)
 {
     std::vector<double> mask;
-    RadialProjection::_mask_func(mask);
+    RadialProjection::maskgen(mask);
     EXPECT_EQ(mask.size(), 201);
     EXPECT_EQ(mask[0], 1.0); // the rescaled value of the mask function, at 0, is 1
     EXPECT_NEAR(mask[200], 0.98138215E-05, 1e-10); // real space cut, at rc, is 0
@@ -132,7 +132,7 @@ TEST(RadialProjectionTest, BuildSbtTabCorrectnessTest)
 
     // use mask function as the example
     std::vector<double> mask;
-    RadialProjection::_mask_func(mask);
+    RadialProjection::maskgen(mask);
     // suppose the r from 0 to 2.0 (inclusive) with 0.01 step
     std::vector<double> r(mask.size());
     std::iota(r.begin(), r.end(), 0);
@@ -147,7 +147,7 @@ TEST(RadialProjectionTest, BuildSbtTabCorrectnessTest)
     std::vector<int> l(1, 0);
 
     // build the interpolation table
-    rp._build_sbt_tab(r, radials, l, 201, 0.01); // build an interpolation table
+    rp.build_sbt_tab(r, radials, l, 201, 0.01); // build an interpolation table
     
     // only one q point: (0, 0, 0), is Gamma
     std::vector<ModuleBase::Vector3<double>> q(1);
@@ -183,7 +183,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
 {
     // still use mask function but scale with different Gaussian function
     std::vector<double> mask;
-    RadialProjection::_mask_func(mask);
+    RadialProjection::maskgen(mask);
     // suppose the r from 0 to 2.0 (inclusive) with 0.01 step
     std::vector<double> r(mask.size());
     std::iota(r.begin(), r.end(), 0);
@@ -230,7 +230,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
     std::iota(l.begin(), l.end(), 0);
 
     RadialProjection::RadialProjector rp;
-    rp._build_sbt_tab(r, radials, l, 401, 0.01); // build an interpolation table
+    rp.build_sbt_tab(r, radials, l, 401, 0.01); // build an interpolation table
 
     // then perform the transform
     std::vector<std::complex<double>> out;
@@ -243,7 +243,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
     // check if they are listed in expected sequence, say the first should be
     // Fourier transform of the first function, mask, l = 0, m = 0
     RadialProjection::RadialProjector rp1;
-    rp1._build_sbt_tab(r, 
+    rp1.build_sbt_tab(r, 
                        std::vector<std::vector<double>>(1, mask), 
                        std::vector<int>(1, 0), 401, 0.01);
     std::vector<std::complex<double>> out1;
@@ -254,7 +254,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
         EXPECT_NEAR(out[iq].imag(), out1[iq].imag(), DOUBLETHRESHOLD);
     }
     RadialProjection::RadialProjector rp2;
-    rp2._build_sbt_tab(r, 
+    rp2.build_sbt_tab(r, 
                        std::vector<std::vector<double>>(1, mask1), 
                        std::vector<int>(1, 1), 401, 0.01);
     std::vector<std::complex<double>> out2;
@@ -265,7 +265,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
         EXPECT_NEAR(out[iq+50].imag(), out2[iq].imag(), DOUBLETHRESHOLD);
     }
     RadialProjection::RadialProjector rp3;
-    rp3._build_sbt_tab(r, 
+    rp3.build_sbt_tab(r, 
                        std::vector<std::vector<double>>(1, mask2), 
                        std::vector<int>(1, 2), 401, 0.01);
     std::vector<std::complex<double>> out3;
@@ -276,7 +276,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
         EXPECT_NEAR(out[iq+50+50*(2*1+1)].imag(), out3[iq].imag(), DOUBLETHRESHOLD);
     }
     RadialProjection::RadialProjector rp4;
-    rp4._build_sbt_tab(r, 
+    rp4.build_sbt_tab(r, 
                        std::vector<std::vector<double>>(1, mask3), 
                        std::vector<int>(1, 3), 401, 0.01);
     std::vector<std::complex<double>> out4;

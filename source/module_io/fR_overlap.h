@@ -16,6 +16,7 @@ class FR_overlap
 public:
     using fr_ptr = std::function<T(ModuleBase::Vector3<double>)>;
 
+    // default constructor
     FR_overlap();
 
     void set_parameters(
@@ -27,12 +28,17 @@ public:
         int degree = 110
     );
 
+    // copy constructor
     FR_overlap(const FR_overlap<T>& FR_in);
-
+    // move constructor
     FR_overlap(FR_overlap<T>&& FR_in);
-
+    // destructor
     ~FR_overlap();
 
+    /**
+     * @brief Loop over all atom-pairs, call function cal_FR_IJR
+     * 
+     */
     void calculate_FR();
 
     hamilt::HContainer<T>* get_FR_pointer() const
@@ -41,6 +47,12 @@ public:
     }
 
 protected:
+    /**
+     * @brief Search adjcent atom pairs and allocate memory for FR_container
+     * 
+     * @param GridD Grid Driver class instance, used for searching adjcent atom pairs
+     * @param paraV Parallel_Orbital class instance, used for determining whether atom pair on present proc.
+     */
     void initialize_FR(Grid_Driver* GridD, const Parallel_Orbitals* paraV);
 
     void cal_FR_IJR(const int& iat1, const int& iat2, const Parallel_Orbitals* paraV, const ModuleBase::Vector3<double>& dtau, T* data_pointer);

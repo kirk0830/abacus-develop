@@ -8,6 +8,34 @@
 #include "module_base/matrix.h"
 #include "module_base/math_ylmreal.h"
 #include "module_base/spherical_bessel_transformer.h"
+#include "module_basis/module_pw/pw_basis.h"
+
+void _backward_cutoff(const int nr,
+                      const double* x_in,
+                      const double* y_in,
+                      double* x_out,
+                      double* y_out,
+                      const double cut_thr = 1e-8);
+
+void _backward_cutoff(const std::vector<double>& x_in,
+                      const std::vector<double>& y_in,
+                      std::vector<double>& x_out,
+                      std::vector<double>& y_out,
+                      const double cthr = 1e-8);
+
+void mask(const std::vector<double>& r,
+          const std::vector<double>& w, // the radial function
+          const std::vector<double>& m, // the mask function
+          std::vector<double>& wm,
+          const double cut_thr = 1e-8);
+
+void mask(const int nr,
+          const double* r,
+          const double* w,
+          const int nrm,
+          const double* m,
+          double* wm,
+          const double cut_thr = 1e-8);
 
 void RadialProjection::RadialProjector::_build_backward_map(const std::vector<std::vector<int>>& it2iproj,
                                                             const std::vector<int>& iproj2l,
@@ -74,12 +102,15 @@ void RadialProjection::RadialProjector::_build_forward_map(const std::vector<std
     }
 }
 
-void RadialProjection::RadialProjector::_build_sbt_tab(const int nr,
-                                                       const double* r,
-                                                       const std::vector<double*>& radials,
-                                                       const std::vector<int>& l,
-                                                       const int nq,
-                                                       const double& dq)
+void RadialProjection::RadialProjector::build_sbt_tab(const int nr,
+                                                      const double* r,
+                                                      const std::vector<double*>& radials,
+                                                      const std::vector<int>& l,
+                                                      const int nq,
+                                                      const double& dq,
+                                                      const bool do_mask,
+                                                      const double& eta,
+                                                      const double& cut_thr)
 {
     l_ = l;
     const int nrad = radials.size();
@@ -97,27 +128,35 @@ void RadialProjection::RadialProjector::_build_sbt_tab(const int nr,
     std::vector<double> _temp(nq);
     // the SphericalBesselTransformer's result is multiplied by one extra factor sqrt(2/pi), should remove it
     // see module_base/spherical_bessel_transformer.h and module_base/spherical_bessel_transformer.cpp:328
-    const double pref = std::sqrt(2.0/std::acos(-1.0)); 
+    const double pref = std::sqrt(2.0/std::acos(-1.0));
+
+    std::vector<double> mask_(201, 1.0);
+    if (do_mask) { maskgen(eta, mask_); }
     for(int i = 0; i < nrad; i++)
     {
-        sbt_.direct(l[i], nr, r, radials[i], nq, qgrid.data(), _temp.data());
+        std::vector<double> wm(nr);
+        mask(nr, r, radials[i], 201, mask_.data(), wm.data(), cut_thr);
+        sbt_.direct(l[i], nr, r, wm.data(), nq, qgrid.data(), _temp.data());
         std::for_each(_temp.begin(), _temp.end(), [pref](double& x){x = x/pref;});
         cubspl_->add(_temp.data());
     }
 }
 
-void RadialProjection::RadialProjector::_build_sbt_tab(const std::vector<double>& r,
-                                                       const std::vector<std::vector<double>>& radials,
-                                                       const std::vector<int>& l,
-                                                       const int nq,
-                                                       const double& dq)
+void RadialProjection::RadialProjector::build_sbt_tab(const std::vector<double>& r,
+                                                      const std::vector<std::vector<double>>& radials,
+                                                      const std::vector<int>& l,
+                                                      const int nq,
+                                                      const double& dq,
+                                                      const bool do_mask,
+                                                      const double& eta,
+                                                      const double& cut_thr)
 {
     const int nr = r.size();
     const int nrad = radials.size();
     for(int i = 0; i < nrad; i++) { assert(radials[i].size() == nr); }
     std::vector<double*> radptrs(radials.size());
     for(int i = 0; i < radials.size(); i++) { radptrs[i] = const_cast<double*>(radials[i].data()); }
-    _build_sbt_tab(nr, r.data(), radptrs, l, nq, dq);
+    build_sbt_tab(nr, r.data(), radptrs, l, nq, dq, do_mask, eta, cut_thr);
 }
 
 void RadialProjection::RadialProjector::sbtft(const std::vector<ModuleBase::Vector3<double>>& qs,
@@ -161,7 +200,8 @@ void RadialProjection::RadialProjector::sbtft(const std::vector<ModuleBase::Vect
     assert(iproj == nchannel); // should write to inflate each radial to 2l+1 channels
 }
 
-void RadialProjection::_mask_func(std::vector<double>& mask)
+void RadialProjection::maskgen(const double& eta, 
+                               std::vector<double>& mask)
 {
     /* mask function is hard coded here, eta = 15 */
     mask.resize(201);
@@ -223,32 +263,121 @@ void RadialProjection::_mask_func(std::vector<double>& mask)
     }
 }
 
-void RadialProjection::_do_mask_on_radial(const int nr1,
-                                          const double* r,
-                                          const double* in,
-                                          const int nr2,
-                                          const double* mask,
-                                          double* out)
+// do cutoff for the radial functions, discard all the values below the cut_thr
+void _backward_cutoff(const int nr,
+                      const double* x_in,
+                      const double* y_in,
+                      double* x_out,
+                      double* y_out,
+                      const double cut_thr)
 {
-    // wm(r) = w(r)/m(r), in which w(r) is the function to "mask" and m(r) is the so-called mask function
-    // the mask function is rescaled so that r ranges from 0 to 1
-
-    // first, interpolate the mask function to the r grid
-    std::vector<double> rtemp_(nr1, 0.0);
-    const double dr = 1.0/static_cast<double>(nr2-1);
-    std::iota(rtemp_.begin(), rtemp_.end(), 0);
-    std::for_each(rtemp_.begin(), rtemp_.end(), [dr](double& x){x *= dr;});
-    ModuleBase::CubicSpline mask_spline_(nr2, rtemp_.data(), mask);
-    std::vector<double> mask_(nr1);
-    mask_spline_.eval(nr1, r, mask_.data());
-    
-    // then, do the division
-    for(int i = 0; i < nr1; i++)
-    {
-        out[i] = in[i]/mask_[i];
-        assert(std::isfinite(out[i]));
-    }
+    // this function works in a delete-new manner, which is susceptible to memory leak
+    // do not use this function if possible
+    delete[] x_out;
+    delete[] y_out;
+    assert(false); // not implemented
 }
+// a std::vector overload
+void _backward_cutoff(const std::vector<double>& x_in,
+                      const std::vector<double>& y_in,
+                      std::vector<double>& x_out,
+                      std::vector<double>& y_out,
+                      const double cthr)
+{
+    assert(x_in.size() == y_in.size()); // assert the x and y to be homogeneous
+    const int n = x_in.size();
+    int n_out = n;
+    while (n_out > 0 && y_in[n_out-1] <= cthr) { n_out--; }
+    x_out.resize(n_out);
+    y_out.resize(n_out);
+    std::copy(x_in.begin(), x_in.begin()+n_out, x_out.begin());
+    std::copy(y_in.begin(), y_in.begin()+n_out, y_out.begin());
+}
+
+// wm(r) = w(r)/m(r), in which w(r) is the function to "mask" and m(r) is the so-called mask function
+// the mask function is rescaled so that r ranges from 0 to 1
+void mask(const int nr,
+          const double* r,
+          const double* w,
+          const int nrm,
+          const double* m,
+          double* wm,
+          const double cut_thr)
+{
+    std::vector<double> r_(nr), w_(nr);
+    std::copy(r, r+nr, r_.begin());
+    std::copy(w, w+nr, w_.begin());
+    std::vector<double> m_(nrm);
+    std::copy(m, m+nrm, m_.begin());
+    std::vector<double> wm_(nr);
+    mask(r_, w_, m_, wm_, cut_thr);
+    std::copy(wm_.begin(), wm_.end(), wm);
+}
+
+void mask(const std::vector<double>& r,
+          const std::vector<double>& w, // the radial function
+          const std::vector<double>& m, // the mask function
+          std::vector<double>& wm,
+          const double cut_thr)
+{
+    assert(r.size() == w.size()); // x and y should have the same size
+    // for mask function, only y is needed to provided because x is default to be in range [0, 1].
+    // then the cutoff of mask function is always the 1.5*rmax, in which rmax is the maximum of r of
+    // function to mask.
+
+    // first do the backward cutoff for the radial function to reduce unnecessary computation
+    std::vector<double> r_, w_;
+    _backward_cutoff(r, w, r_, w_, cut_thr);
+
+    // then build the cubic spline interpolation table with the newly generated r_
+    const double rmax = *std::max_element(r_.begin(), r_.end());
+    std::vector<double> rmask(m.size(), 0.0);
+    std::iota(rmask.begin(), rmask.end(), 0.0);
+    // remember the realspace cutoff for mask function is about 1.5*rmax
+    std::transform(rmask.begin(), rmask.end(), rmask.begin(), [rmax](double x){return 1.5*x/rmax;});
+    // build the cubic spline for the mask function
+    ModuleBase::CubicSpline maskspl_(rmask.size(), rmask.data(), m.data());
+
+    // do mask, first evaluate the mask function on the new r_
+    std::vector<double> m_(r_.size());
+    maskspl_.eval(r_.size(), r_.data(), m_.data());
+    wm.resize(r_.size());
+    // then do the mask
+    std::transform(w_.begin(), w_.end(), m_.begin(), wm.begin(), [](double x, double y){return x/y;});
+    // then zero-padding the wm to the original size
+    wm.resize(r.size(), 0.0);
+}
+
+// Small box FFT then requires another spherical FFT grid that the |q|<2qmax - qc, in which the qmax is
+// the norm of wavevector of the maximal kinetic energy cutoff, usually corresponds to that of ecutrho. 
+// qc always corresponds to ecutwfc.
+
+
+
+// the qmax and qc may change if the volumn of cell changes, otherwise all the wm(q) can be cached 
+// somewhere
+
+// transform wm(r) to wm(q). Then do sample and integration on real space grid. The sample of realspace
+// grid points can be done by either primitive sampling or FFT by PW_Basis::recip2real.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Additional-bidirectional mapping for the projector. 

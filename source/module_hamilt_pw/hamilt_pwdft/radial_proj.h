@@ -41,9 +41,9 @@ namespace RadialProjection
      * const double dq = 0.01;  
      * // given `r` is the real space grid and `radials` is the collection of radial
      * // functions, `l` is the angular momentum quantum number for each radial function
-     * // then the interpolation table can be rapidly built by calling SphericalBesselTransformer
-     * // and CubicSpline modules.
-     * rp._build_sbt_tab(r, radials, l, nq, dq);
+     * // then the interpolation table can be rapidly built by calling
+     * // SphericalBesselTransformer and CubicSpline modules.
+     * rp.build_sbt_tab(r, radials, l, nq, dq);
      * // then the set of q will used to calculate the Fourier transform
      * rp.sbtft(qs, out, 'r', omega, tpiba);
      * // in `out`, there will be the Fourier transform of the radial functions organized
@@ -53,7 +53,7 @@ namespace RadialProjection
      * 
      * // one may find it is not easy to maintain such a large table, so here, also provides
      * // a tool function to map the 2D index to 1D index, and vice versa. With the angular
-     * // momentum used in function _build_sbt_tab, one can easily build a map from 
+     * // momentum used in function build_sbt_tab, one can easily build a map from 
      * // [irad][im] to 1D index, and use two functions _irad_m_to_idx and _idx_to_irad_m
      * // to convert between 1D index and [irad][m] (instead of im!).
      * std::vector<std::vector<int>> map_;
@@ -66,46 +66,48 @@ namespace RadialProjection
     {
         public:
             /**
-             * Notation of following two functions:
+             * Notation of following two functions (murmur):
              * 
-             * Given all the projectors are listed in a series, so the `iproj` is the index goes across
-             * all atomtypes, which means if for the first type, the iproj goes from 0 to 4, then the
-             * second atomtypes the iproj will start from 5, and so on...
-             * However, there is also another convention, like numerical atomic orbitals, developer always
-             * use "l" to index orbitals, here, in all output map, the `iproj` will start from 0, which
-             * means in output the `iproj` is local index.
-             * -----------------------------------------------------------------------------------------
+             * Given all the projectors are listed in a series, so the `iproj` is the index goes
+             * across all atomtypes, which means if for the first type, the iproj goes from 0 to
+             * 4, then the second atomtypes the iproj will start from 5, and so on...
+             * However, there is also another convention, like numerical atomic orbitals, 
+             * developer always use "l" to index orbitals, here, in all output map, the `iproj`
+             * will start from 0, which means in output the `iproj` is local index.
+             * ---------------------------------------------------------------------------------
              * First, the following lists should be prepared as early as possible,
              * 
-             * it2iproj: for given it, the index of atom type, return the list of index of projectors.
+             * it2iproj: for given it, the index of atom type, return the list of index of 
+             * projectors.
              * 
-             * iproj2l: for given iproj, the index of projectors, return the l of this projector. More
-             * simply explaning, it is just the list of angular momentum of projectors.
+             * iproj2l: for given iproj, the index of projectors, return the l of this projector. 
+             * More simply explaning, it is just the list of angular momentum of projectors.
              * 
-             * it2ia: just a list that stolen information from UnitCell, for given it, the index of atom
-             * within the range of it. So this list is different from the it2iproj, iproj is the index
-             * across type but ia is the index within the type. So for each it2ia[it], the ia, in principle
-             * , always/can start from 0.
+             * it2ia: just a list that stolen information from UnitCell, for given it, the index
+             * of atom within the range of it. So this list is different from the it2iproj, iproj
+             * is the index across type but ia is the index within the type. So for each 
+             * it2ia[it], the ia, in principle , always/can start from 0.
              * 
-             * One may question that does the indexing support one atom type with multiple projectors? The
-             * answer is YES. Combining the it2iproj and it2ia, one can even support PART of atoms of one
-             * type has multiple projectors.
+             * One may question that does the indexing support one atom type with multiple 
+             * projectors? The answer is YES. Combining the it2iproj and it2ia, one can even 
+             * support PART of atoms of one type has multiple projectors.
              * -----------------------------------------------------------------------------------------
              * Then the returned lists,
              * 
-             * irow2it: for given `irow`, the index of row, return the `it`: the index of atom type. 
+             * irow2it: for given `irow`, the index of row, return the `it`: the index of atom 
+             * type. 
              * 
-             * irow2ia: for given `irow`, the index of row, return the `ia`: the index of atom within the range
-             * of `it`.
+             * irow2ia: for given `irow`, the index of row, return the `ia`: the index of atom 
+             * within the range of `it`.
              * 
-             * irow2iproj: for given `irow`, the index of row, return the `iproj`, the index of projectors,
-             * note that this `iproj` is the local index.
+             * irow2iproj: for given `irow`, the index of row, return the `iproj`, the index of
+             * projectors, note that this `iproj` is the local index.
              * 
-             * irow2m: for given irow, the index of row, return the m, the magnetic quantum number of this
-             * projector. 
+             * irow2m: for given irow, the index of row, return the m, the magnetic quantum 
+             * number of this projector. 
              * 
-             * One may complain that cannot get `l` from the `irow`, but the truth is, not exactly. One can
-             * get the `l` starting from `irow` by:
+             * One may complain that cannot get `l` from the `irow`, but the truth is, not 
+             * exactly. One can get the `l` starting from `irow` by:
              * ```c++   
              * const int iproj = irow2iproj[irow];   
              * const int it = irow2it[irow];   
@@ -151,17 +153,23 @@ namespace RadialProjection
              * @param nq number of q-points
              * @param dq space between q-points
              */
-            void _build_sbt_tab(const int nr,
+            void build_sbt_tab(const int nr,
                                 const double* r,
                                 const std::vector<double*>& radials,
                                 const std::vector<int>& l,
                                 const int nq,                             //< GlobalV::DQ
-                                const double& dq);                        //< GlobalV::NQX
-            void _build_sbt_tab(const std::vector<double>& r,
+                                const double& dq,                         //< GlobalV::NQX
+                                const bool do_mask = false,
+                                const double& eta = 15.0,
+                                const double& cut_thr = 1e-8);
+            void build_sbt_tab(const std::vector<double>& r,
                                 const std::vector<std::vector<double>>& radials,
                                 const std::vector<int>& l,
                                 const int nq,                             //< GlobalV::DQ
-                                const double& dq);                        //< GlobalV::NQX
+                                const double& dq,                         //< GlobalV::NQX
+                                const bool do_mask = false,
+                                const double& eta = 15.0,
+                                const double& cut_thr = 1e-8);
 
             /**
              * @brief perform analytical version of the Fourier transform:
@@ -210,7 +218,8 @@ namespace RadialProjection
      * 3. Make FT on wm(r) to get wm(q)
      * 4. Make inverse FT with only the q-grid in range |q| < 2qmax - qc to get the
      *    wm'(r).
-     * 5. Perform real-space integration on function w'(r)*m(r)*exp(iqr).
+     * 5. Perform real-space integration on function w'(r)*m(r)*psi_{nk}(r) to get the
+     *    matrix element of becp.
      */
 
     /**
@@ -218,26 +227,8 @@ namespace RadialProjection
      * 
      * @param mask mask function
      */
-    void _mask_func(std::vector<double>& mask);
+    void maskgen(const double& eta, std::vector<double>& mask);
 
-    /**
-     * @brief do operation w(r)/m(r) on a radial function. The cutoff radius of w(r) 
-     * is smaller than the cutoff radius of m(r). The m(r) has been rescaled so that 
-     * r ranges from 0 to 1.
-     * 
-     * @param nr1 number of grid points of function to operate
-     * @param r grid points of function to operate
-     * @param in function to operate
-     * @param nr2 number of grid points of mask function
-     * @param mask mask function
-     * @param out output value
-     */
-    void _do_mask_on_radial(const int nr1,
-                            const double* r,
-                            const double* in,
-                            const int nr2,
-                            const double* mask,
-                            double* out);
 }
 
 #endif // RADIAL_PROJECTION_H

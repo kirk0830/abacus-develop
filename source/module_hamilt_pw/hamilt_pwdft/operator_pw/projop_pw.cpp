@@ -13,6 +13,7 @@
 #include "module_basis/module_nao/atomic_radials.h"
 #include "module_hamilt_pw/hamilt_pwdft/structure_factor.h"
 #include "module_basis/module_pw/pw_basis_k.h"
+#include "module_basis/module_pw/pw_basis.h"
 #include "module_cell/unitcell.h"
 #include "module_base/blas_connector.h"
 #ifdef __MPI
@@ -198,7 +199,7 @@ void cal_becp(const std::vector<std::vector<int>>& it2ia,       // level0: for g
     std::map<std::tuple<int, int, int, int>, int> itiaiprojm2irow;
     RadialProjection::RadialProjector::_build_backward_map(it2iproj, iproj2l, irow2it, irow2iproj, irow2m);
     RadialProjection::RadialProjector::_build_forward_map(it2ia, it2iproj, iproj2l, itiaiprojm2irow);
-    rp._build_sbt_tab(rgrid, projs, iproj2l, nq, dq);
+    rp.build_sbt_tab(rgrid, projs, iproj2l, nq, dq);
 
 
     // STAGE 1 - calculate the <G+k|p> for the given G+k vector
@@ -281,4 +282,23 @@ void cal_becp(const std::vector<std::vector<int>>& it2ia,       // level0: for g
 #endif
     tab_atomic_.clear();
     tab_atomic_.shrink_to_fit(); // release memory
+}
+
+// version of SmallBoxFastFourierTransform
+// procedure:
+// 1. do interpolation on Cubspl_ of wm(q) (radial parts) with given qvector in range
+//    |q| < 2qmax - qc, which can be get from a pw_basis instance. Technically, qmax 
+//    is always from ecutrho, qc from ecutwfc.
+// 2. use recip2real to get realspace grid points data of wm(q) as wm(r)
+// 3. do grid integration on wm(r)*m(r)*psi_{nk}(r) to get one element of becp
+//
+// the way to do grid integration is tricky, can straightly (but slowly) do the integration
+// on FFT grids which is, evenly spaced, or do it on the Gauss-Legendre-Lebedev-Laikov grids
+// which is not evenly spaced but seems to be more accurate and efficient.
+// From functionality lcao2wannier, the developer use interpolation to get the psi value
+// at grid points, however, is it possible to do the 3d interpolation of psi_{nk}(r) and
+// wm(r)? is it expensive?
+void cal_becp()
+{
+
 }

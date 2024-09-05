@@ -198,10 +198,10 @@ void snap_psibeta_half_tddft(const LCAO_Orbitals& orb,
 
             for (int ian = 0; ian < angular_grid_num; ian++)
             {
-                double x = ModuleBase::Integral::Lebedev_Laikov_grid110_x[ian];
-                double y = ModuleBase::Integral::Lebedev_Laikov_grid110_y[ian];
-                double z = ModuleBase::Integral::Lebedev_Laikov_grid110_z[ian];
-                double weights_angular = ModuleBase::Integral::Lebedev_Laikov_grid110_w[ian];
+                double x = ModuleBase::Integral::LebedevLaikovGrid110_x[ian];
+                double y = ModuleBase::Integral::LebedevLaikovGrid110_y[ian];
+                double z = ModuleBase::Integral::LebedevLaikovGrid110_z[ian];
+                double weights_angular = ModuleBase::Integral::LebedevLaikovGrid110_w[ian];
                 ModuleBase::Vector3<double> r_angular_tmp(x, y, z);
 
                 ModuleBase::Vector3<double> r_coor = r_ridial[ir] * r_angular_tmp;
