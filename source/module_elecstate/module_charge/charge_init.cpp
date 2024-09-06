@@ -32,22 +32,25 @@ void Charge::init_rho(elecstate::efermi& eferm_iout, const ModuleBase::ComplexMa
 
         // try to read charge from binary file first, which is the same as QE
         // liuyu 2023-12-05
-        // std::stringstream binary;
-        // binary << GlobalV::global_readin_dir << PARAM.inp.suffix + "-CHARGE-DENSITY.restart";
-        // if (ModuleIO::read_rhog(binary.str(), rhopw, rhog))
-        // {
-        //     GlobalV::ofs_running << " Read in the charge density: " << binary.str() << std::endl;
-        //     for (int is = 0; is < GlobalV::NSPIN; ++is)
-        //     {
-        //         rhopw->recip2real(rhog[is], rho[is]);
-        //     }
-        // }
-        if(true)
+        std::stringstream binary;
+        binary << GlobalV::global_readin_dir << PARAM.inp.suffix + "-CHARGE-DENSITY.restart";
+        if (ModuleIO::read_rhog(binary.str(), rhopw, rhog))
+        {
+            GlobalV::ofs_running << " Read in the charge density: " << binary.str() << std::endl;
+            // for (int is = 0; is < GlobalV::NSPIN; ++is)
+            // {
+            //     rhopw->recip2real(rhog[is], rho[is]);
+            // }
+            std::cout << " Nomenclature:\n read-in rho in realspace: rho(0), in recip.space: rhog(0)." << std::endl;
+            std::cout << " Read rhog from " << binary.str() << std::endl;
+        }
+        if(true) // else
         {
             for (int is = 0; is < GlobalV::NSPIN; ++is)
             {
                 std::stringstream ssc;
                 ssc << GlobalV::global_readin_dir << "SPIN" << is + 1 << "_CHG.cube";
+                std::cout << " Read rho from " << ssc.str() << std::endl;
                 double& ef_tmp = eferm_iout.get_ef(is);
                 if (ModuleIO::read_rho(
 #ifdef __MPI
@@ -69,75 +72,95 @@ void Charge::init_rho(elecstate::efermi& eferm_iout, const ModuleBase::ComplexMa
                         this->prenspin))
                 {
                     GlobalV::ofs_running << " Read in the charge density: " << ssc.str() << std::endl;
+                    double err_r = 0;
+                    double err_g = 0;
                     std::vector<std::complex<double>> rhog_i(this->rhopw->npw);
-                    std::vector<double> rho_i(this->rhopw->nrxx);
+                    std::vector<double> rho_i(this->rhopw->nrxx); // nrxx is the dimension of rho in present processor
                     std::vector<double> rho_temp(this->rhopw->nrxx);
+                    std::vector<std::complex<double>> rhog_temp(this->rhopw->npw);
                     std::vector<double> rho1(this->rhopw->nrxx);
                     double* rho0 = this->rho[is];
-                    double error = 0;
+                    std::complex<double>* rhog0 = this->rhog[is];
 
-                    this->rhopw->real2recip(this->rho[is], rhog_i.data()); // -> rho(G)
-                    this->rhopw->recip2real(rhog_i.data(), rho_i.data()); // -> rho(r)
-                    std::copy(rho_i.begin(), rho_i.end(), rho1.begin()); // save rho1(r)
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin()); // save to rho_temp(r)
-                    
+                    // charge integrity check...
+                    double charge = std::accumulate(rho0, rho0 + this->rhopw->nrxx, 0.0) * GlobalC::ucell.omega / this->rhopw->nxyz;
+                    #ifdef __MPI
+                        Parallel_Reduce::reduce_pool(charge);
+                        if (GlobalV::MY_RANK == 0)
+                        {
+                    #endif
+                    printf("integrate rho(0): %f e\n", charge);
+                    #ifdef __MPI
+                        }
+                    #endif
+
+                    // rho(r) -> rho(G) -> rho(r)
+                    this->rhopw->real2recip(rho0, rhog_i.data()); // -> rho(G)
+                    this->rhopw->recip2real(rhog_i.data(), rho_i.data()); std::copy(rho_i.begin(), rho_i.end(), rho1.begin()); // save rho1(r)
                     // calculate error w.r.t. rho0
                     std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho0 = %20.10e\n", error);
-                    error = 0; // reset error
-                    // then calculate error w.r.t. rho1
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho1 = %20.10e\n", error);
-                    error = 0; // reset error
-
-                    this->rhopw->real2recip(rho_i.data(), rhog_i.data()); // -> rho(G)
-                    this->rhopw->recip2real(rhog_i.data(), rho_i.data()); // -> rho(r)
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    // calculate error w.r.t. rho0
-                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho0 = %20.10e\n", error);
-                    error = 0; // reset error
-                    // then calculate error w.r.t. rho1
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho1 = %20.10e\n", error);
-
-                    this->rhopw->real2recip(rho_i.data(), rhog_i.data());
-                    this->rhopw->recip2real(rhog_i.data(), rho_i.data());
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    // calculate error w.r.t. rho0
-                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho0 = %20.10e\n", error);
-                    error = 0; // reset error
-                    // then calculate error w.r.t. rho1
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho1 = %20.10e\n", error);
-                    error = 0; // reset error
-
-                    this->rhopw->real2recip(rho_i.data(), rhog_i.data());
-                    this->rhopw->recip2real(rhog_i.data(), rho_i.data());
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    // calculate error w.r.t. rho0
-                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho0 = %20.10e\n", error);
-                    error = 0; // reset error
-                    // then calculate error w.r.t. rho1
-                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
-                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
-                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
-                    printf("error w.r.t. rho1 = %20.10e\n", error);
-                    error = 0; // reset error
-
-                    ModuleBase::WARNING_QUIT("Charge::init_rho", "Test recip2real & real2recip error");
+                    err_r = std::accumulate(rho_temp.begin(), rho_temp.end(), 0.0, [](double sum, double val) { return sum + std::abs(val); });
+                    std::transform(rhog_i.begin(), rhog_i.end(), rhog0, rhog_temp.begin(), std::minus<std::complex<double>>());
+                    err_g = std::accumulate(rhog_temp.begin(), rhog_temp.end(), 0.0, [](double sum, std::complex<double> val) { return sum + std::abs(val); });
+                    #ifdef __MPI
+                        Parallel_Reduce::reduce_pool(err_r);
+                        if (GlobalV::MY_RANK == 0)
+                        {
+                    #endif
+                    printf("initialize rho(1) by rho(0) -> rho(G) -> rho(1).\n"
+                           "sum(abs(err)) of rho(1) w.r.t. rho(0) = %16.10e\n", err_r);
+                    printf("sum(abs(err)) of rhog(1) w.r.t. rhog(0) = %16.10e\n", err_g);
+                    #ifdef __MPI
+                        }
+                    #endif
+                    // more tests...
+                    for (int itest = 0; itest < 8; itest++)
+                    {
+                        // rho(r) -> rho(G) -> rho(r)
+                        this->rhopw->real2recip(rho_i.data(), rhog_i.data()); // -> rho(G)
+                        this->rhopw->recip2real(rhog_i.data(), rho_i.data()); // -> rho(r)
+                        charge = std::accumulate(rho_i.begin(), rho_i.end(), 0.0) * GlobalC::ucell.omega / this->rhopw->nxyz;
+                        #ifdef __MPI
+                            Parallel_Reduce::reduce_pool(charge);
+                            if (GlobalV::MY_RANK == 0)
+                            {
+                        #endif
+                        printf("Test #%d:\n", itest+1);
+                        printf("integrate rho(%d): %f e\n", itest+2, charge);
+                        #ifdef __MPI
+                            }
+                        #endif
+                        // calculate error w.r.t. rho0
+                        std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
+                        err_r = std::accumulate(rho_temp.begin(), rho_temp.end(), 0.0, [](double sum, double val) { return sum + std::abs(val); });
+                        std::transform(rhog_i.begin(), rhog_i.end(), rhog0, rhog_temp.begin(), std::minus<std::complex<double>>());
+                        err_g = std::accumulate(rhog_temp.begin(), rhog_temp.end(), 0.0, [](double sum, std::complex<double> val) { return sum + std::abs(val); });
+                        #ifdef __MPI
+                            Parallel_Reduce::reduce_pool(err_r);
+                            if (GlobalV::MY_RANK == 0)
+                            {
+                        #endif
+                        printf("sum(abs(err)) of rho(%d) w.r.t. rho(0) & rho(1) = %16.10e, ", itest+2, err_r);
+                        #ifdef __MPI
+                            }
+                        #endif
+                        // then calculate error w.r.t. rho1
+                        std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
+                        err_r = std::accumulate(rho_temp.begin(), rho_temp.end(), 0.0, [](double sum, double val) { return sum + std::abs(val); });
+                        #ifdef __MPI
+                            Parallel_Reduce::reduce_pool(err_r);
+                            if (GlobalV::MY_RANK == 0)
+                            {
+                        #endif
+                        printf("%16.10e\n", err_r);
+                        printf("sum(abs(err)) of rhog(%d) w.r.t. rhog(0) = %16.10e\n\n", itest+2, err_g);
+                        #ifdef __MPI
+                            }
+                        #endif
+                    }
+                    // overwrite rho0 with rho1
+                    // std::copy(rho1.begin(), rho1.end(), rho0);
+                    //ModuleBase::WARNING_QUIT("Charge::init_rho", "Test recip2real & real2recip error");
                 }
                 else if (is > 0)
                 {
