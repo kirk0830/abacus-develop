@@ -18,7 +18,8 @@
 #ifdef USE_PAW
 #include "module_cell/module_paw/paw_cell.h"
 #endif
-
+#include <numeric>
+#include <algorithm>
 void Charge::init_rho(elecstate::efermi& eferm_iout, const ModuleBase::ComplexMatrix& strucFac, const int& nbz, const int& bz)
 {
     ModuleBase::GlobalFunc::OUT(GlobalV::ofs_running, "init_chg", GlobalV::init_chg);
@@ -31,17 +32,17 @@ void Charge::init_rho(elecstate::efermi& eferm_iout, const ModuleBase::ComplexMa
 
         // try to read charge from binary file first, which is the same as QE
         // liuyu 2023-12-05
-        std::stringstream binary;
-        binary << GlobalV::global_readin_dir << PARAM.inp.suffix + "-CHARGE-DENSITY.restart";
-        if (ModuleIO::read_rhog(binary.str(), rhopw, rhog))
-        {
-            GlobalV::ofs_running << " Read in the charge density: " << binary.str() << std::endl;
-            for (int is = 0; is < GlobalV::NSPIN; ++is)
-            {
-                rhopw->recip2real(rhog[is], rho[is]);
-            }
-        }
-        else
+        // std::stringstream binary;
+        // binary << GlobalV::global_readin_dir << PARAM.inp.suffix + "-CHARGE-DENSITY.restart";
+        // if (ModuleIO::read_rhog(binary.str(), rhopw, rhog))
+        // {
+        //     GlobalV::ofs_running << " Read in the charge density: " << binary.str() << std::endl;
+        //     for (int is = 0; is < GlobalV::NSPIN; ++is)
+        //     {
+        //         rhopw->recip2real(rhog[is], rho[is]);
+        //     }
+        // }
+        if(true)
         {
             for (int is = 0; is < GlobalV::NSPIN; ++is)
             {
@@ -68,6 +69,75 @@ void Charge::init_rho(elecstate::efermi& eferm_iout, const ModuleBase::ComplexMa
                         this->prenspin))
                 {
                     GlobalV::ofs_running << " Read in the charge density: " << ssc.str() << std::endl;
+                    std::vector<std::complex<double>> rhog_i(this->rhopw->npw);
+                    std::vector<double> rho_i(this->rhopw->nrxx);
+                    std::vector<double> rho_temp(this->rhopw->nrxx);
+                    std::vector<double> rho1(this->rhopw->nrxx);
+                    double* rho0 = this->rho[is];
+                    double error = 0;
+
+                    this->rhopw->real2recip(this->rho[is], rhog_i.data()); // -> rho(G)
+                    this->rhopw->recip2real(rhog_i.data(), rho_i.data()); // -> rho(r)
+                    std::copy(rho_i.begin(), rho_i.end(), rho1.begin()); // save rho1(r)
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin()); // save to rho_temp(r)
+                    
+                    // calculate error w.r.t. rho0
+                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho0 = %20.10e\n", error);
+                    error = 0; // reset error
+                    // then calculate error w.r.t. rho1
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho1 = %20.10e\n", error);
+                    error = 0; // reset error
+
+                    this->rhopw->real2recip(rho_i.data(), rhog_i.data()); // -> rho(G)
+                    this->rhopw->recip2real(rhog_i.data(), rho_i.data()); // -> rho(r)
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    // calculate error w.r.t. rho0
+                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho0 = %20.10e\n", error);
+                    error = 0; // reset error
+                    // then calculate error w.r.t. rho1
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho1 = %20.10e\n", error);
+
+                    this->rhopw->real2recip(rho_i.data(), rhog_i.data());
+                    this->rhopw->recip2real(rhog_i.data(), rho_i.data());
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    // calculate error w.r.t. rho0
+                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho0 = %20.10e\n", error);
+                    error = 0; // reset error
+                    // then calculate error w.r.t. rho1
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho1 = %20.10e\n", error);
+                    error = 0; // reset error
+
+                    this->rhopw->real2recip(rho_i.data(), rhog_i.data());
+                    this->rhopw->recip2real(rhog_i.data(), rho_i.data());
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    // calculate error w.r.t. rho0
+                    std::transform(rho_i.begin(), rho_i.end(), rho0, rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho0 = %20.10e\n", error);
+                    error = 0; // reset error
+                    // then calculate error w.r.t. rho1
+                    std::copy(rho_i.begin(), rho_i.end(), rho_temp.begin());
+                    std::transform(rho_i.begin(), rho_i.end(), rho1.begin(), rho_temp.begin(), std::minus<double>());
+                    std::accumulate(rho_temp.begin(), rho_temp.end(), error, [](double sum, double val) { return sum + std::abs(val); });
+                    printf("error w.r.t. rho1 = %20.10e\n", error);
+                    error = 0; // reset error
+
+                    ModuleBase::WARNING_QUIT("Charge::init_rho", "Test recip2real & real2recip error");
                 }
                 else if (is > 0)
                 {
