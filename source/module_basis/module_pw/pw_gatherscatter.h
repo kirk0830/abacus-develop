@@ -179,6 +179,10 @@ void PW_Basis::gathers_scatterp(std::complex<T>* in, std::complex<T>* out) const
     return;
 }
 
-
+// there is not a pair of function for automatically gathering and scattering any
+// physical quantity like A(G)
+// Assume the quantity to scatter has the sequence of G vectors in the same order as serial
+// then scatter it. Conversely, let the quantity to gather will be arranged in the same
+// order as if it is serial.
 
 }
