@@ -120,10 +120,29 @@ TEST(RadialProjectionTest, BuildForwardMapTest)
 TEST(RadialProjectionTest, MaskfunctionGenerationTest)
 {
     std::vector<double> mask;
-    RadialProjection::maskgen(mask);
+    RadialProjection::maskgen(15, mask);
     EXPECT_EQ(mask.size(), 201);
     EXPECT_EQ(mask[0], 1.0); // the rescaled value of the mask function, at 0, is 1
     EXPECT_NEAR(mask[200], 0.98138215E-05, 1e-10); // real space cut, at rc, is 0
+}
+
+TEST(RadialProjectionTest, MaskrgenTest)
+{
+    std::vector<double> maskr;
+    RadialProjection::maskrgen(201, 15, maskr);
+    std::vector<double> r(201);
+    std::iota(r.begin(), r.end(), 0);
+    const double dr = 1/201.0;
+    std::for_each(r.begin(), r.end(), [dr](double& x){x *= dr;});
+    std::vector<double> mask;
+    RadialProjection::maskgen(15, mask);
+    for(int i = 0; i < 201; ++i)
+    {
+        if (std::abs(maskr[i] - mask[i] * r[i]) > DOUBLETHRESHOLD)
+        {
+            std::cout << "i = " << i << ", maskr = " << maskr[i] << ", mask = " << mask[i] << std::endl;
+        }
+    }
 }
 
 TEST(RadialProjectionTest, BuildSbtTabCorrectnessTest)
@@ -132,7 +151,7 @@ TEST(RadialProjectionTest, BuildSbtTabCorrectnessTest)
 
     // use mask function as the example
     std::vector<double> mask;
-    RadialProjection::maskgen(mask);
+    RadialProjection::maskgen(15, mask);
     // suppose the r from 0 to 2.0 (inclusive) with 0.01 step
     std::vector<double> r(mask.size());
     std::iota(r.begin(), r.end(), 0);
@@ -183,7 +202,7 @@ TEST(RadialProjectionTest, BuildSbtTabStabilityTest)
 {
     // still use mask function but scale with different Gaussian function
     std::vector<double> mask;
-    RadialProjection::maskgen(mask);
+    RadialProjection::maskgen(15, mask);
     // suppose the r from 0 to 2.0 (inclusive) with 0.01 step
     std::vector<double> r(mask.size());
     std::iota(r.begin(), r.end(), 0);

@@ -9,6 +9,11 @@
 #include "module_base/math_ylmreal.h"
 #include "module_base/spherical_bessel_transformer.h"
 #include "module_basis/module_pw/pw_basis.h"
+#include "module_base/lapack_wrapper.h"
+#include <cmath>
+#ifdef __OMP
+#include <omp.h>
+#endif
 
 void _backward_cutoff(const int nr,
                       const double* x_in,
@@ -200,6 +205,87 @@ void RadialProjection::RadialProjector::sbtft(const std::vector<ModuleBase::Vect
     assert(iproj == nchannel); // should write to inflate each radial to 2l+1 channels
 }
 
+void RadialProjection::maskrgen(const int& m,
+                                const double& eta,
+                                std::vector<double>& maskr)
+{
+    std::vector<double> x(m, 0.0);
+    std::iota(x.begin(), x.end(), 1.0);
+    std::for_each(x.begin(), x.end(), [m](double& x){x /= static_cast<double>(m);});
+
+    std::vector<double> Amat(m*m, 0.0);
+    int ia = 0;
+    #pragma omp parallel for collapse(2)
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            const double xp = x[i] + x[j];
+            const double xm = x[i] - x[j];
+            const double term1 = (std::abs(xp) < 1e-12)? eta: std::sin(eta*xp)/xp;
+            const double term2 = (i == j)? (static_cast<double>(m)*M_PI - eta): 
+                   (std::abs(xm) < 1e-12)? -eta: -std::sin(eta*xm)/xm;
+            Amat[ia] = term1 + term2;
+            ia++;
+        }
+    }
+    // print Amat
+    std::ofstream ofs("Amat.dat");
+    for(int i = 0; i < m; i++)
+    {
+        for(int j = 0; j < m; j++)
+        {
+            ofs << Amat[i*m+j] << " ";
+        }
+        ofs << std::endl;
+    }
+    ofs.close();
+    // then diagonalize the matrix
+    // Allocate space for the eigenvalues
+    std::vector<double> wr(m), wi(m);
+
+    // Allocate space for the eigenvectors (if needed)
+    std::vector<double> vr(m * m);
+
+    // Workspace and info variables
+    std::vector<double> work(1);
+    int lwork = -1;
+    int info;
+
+    // First call to dgeev to compute the optimal size of the work array
+    char jobvl = 'N';  // 'N' means do not compute the left eigenvectors
+    char jobvr = 'V';  // 'V' means compute the right eigenvectors
+    dgeev_(&jobvl, &jobvr, &m, Amat.data(), &m, wr.data(), wi.data(),
+           nullptr, &m, vr.data(), &m, work.data(), &lwork, &info);
+
+    // Check for success
+    if (info != 0) {
+        std::cerr << "Error: dgeev workspace query failed." << std::endl;
+        return;
+    }
+
+    // Resize the work array to the optimal size
+    lwork = static_cast<int>(work[0]);
+    work.resize(lwork);
+
+    // Second call to dgeev to compute the eigenvalues and right eigenvectors
+    dgeev_(&jobvl, &jobvr, &m, Amat.data(), &m, wr.data(), wi.data(),
+           nullptr, &m, vr.data(), &m, work.data(), &lwork, &info);
+
+    // Check for success
+    if (info != 0) {
+        std::cerr << "Error: dgeev failed." << std::endl;
+        return;
+    }
+
+    // The eigenvalues are now in wr (real parts) and wi (imaginary parts)
+    // The right eigenvectors are in vr (if jobvr was 'V')
+
+    // save the eigenvector to maskr
+    maskr.resize(m, 0.0);
+    std::copy(vr.begin(), vr.begin()+m, maskr.begin());
+}
+
 void RadialProjection::maskgen(const double& eta, 
                                std::vector<double>& mask)
 {
@@ -348,6 +434,117 @@ void mask(const std::vector<double>& r,
     wm.resize(r.size(), 0.0);
 }
 
+// the FFT only needed to proceed once for all the radial functions
+void build_fft_box(/* ... */);
+
+// given a position in the cell, find the corresponding box index
+void locate_box_in_cell(const double& x, const double& y, const double& z,
+                        const double& a, const int nx, 
+                        const double& b, const int ny, 
+                        const double& c, const int nz,
+                        int& ix, int& iy, int& iz)
+{
+    ix = static_cast<int>(x/a*nx);
+    iy = static_cast<int>(y/b*ny);
+    iz = static_cast<int>(z/c*nz);
+}
+
+// given a sphere, find the two vertexes (xmin, ymin, zmin) and (xmax, ymax, zmax) of the box that 
+// surrounds the sphere
+void find_box_surround_sphere(const double* center,
+                              const double& r,
+                              const double& a, const int nx,
+                              const double& b, const int ny,
+                              const double& c, const int nz,
+                              int& lix, int& liy, int& liz,
+                              int& rix, int& riy, int& riz)
+{
+    const double xmin = center[0] - r;
+    const double ymin = center[1] - r;
+    const double zmin = center[2] - r;
+    const double xmax = center[0] + r;
+    const double ymax = center[1] + r;
+    const double zmax = center[2] + r;
+    locate_box_in_cell(xmin, ymin, zmin, a, nx, b, ny, c, nz, lix, liy, liz);
+    locate_box_in_cell(xmax, ymax, zmax, a, nx, b, ny, c, nz, rix, riy, riz);
+} // this will be helpful for pre-selection of realspace grid points of wfc for calculating becp using
+// small box FFT technique: once get the wm(r) after FFT, integration of product wm(r)\psi(r) requires
+// the r of psi to be in the box that surrounds the sphere of the atom.
+
+
+// interpolation?
+// perform tricubic interpolation according to 
+// https://en.wikipedia.org/wiki/Tricubic_interpolation
+// and https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+// Denote the 1D cubic spline interpolation as: CINT(-1, 0, 1, 2), which means
+// 
+// in has data arranged like for x(for y(for z(in[i])))
+template <typename T>
+void tricubic_interpolation(const T* in,
+                            T* out,
+                            const int* ngrids_in,
+                            const int* ngrids_out)
+{
+    // ngrids_in, ngrids_out are uniformly int[3]
+    std::vector<double> x(ngrids_in[0], 0.0);
+    std::vector<double> y(ngrids_in[1], 0.0);
+    std::vector<double> z(ngrids_in[2], 0.0);
+    std::iota(x.begin(), x.end(), 0.0);
+    std::iota(y.begin(), y.end(), 0.0);
+    std::iota(z.begin(), z.end(), 0.0);
+    // let x, y, z in range [0, 1]
+    std::transform(x.begin(), x.end(), x.begin(), [ngrids_in](double x){return x/ngrids_in[0];});
+    std::transform(y.begin(), y.end(), y.begin(), [ngrids_in](double x){return x/ngrids_in[1];});
+    std::transform(z.begin(), z.end(), z.begin(), [ngrids_in](double x){return x/ngrids_in[2];});
+
+    // perform interpolation of z for one (x, y) plane
+}
+
+// perform fft in box
+/**
+ * @brief 
+ * 
+ * @param in data mapped onto realspace grid points to transform
+ * @param out output of f(G) and G arranges in qgrid
+ * @param a [e11, e12, e13]
+ * @param b [e21, e22, e23]
+ * @param c [e31, e32, e33]
+ * @param ecut in Ry, the kinetic energy cutoff, result in Gmax = sqrt(ecut), ecut will be in Ha
+ * @param qgrid G of f(G) in the box
+ * 
+ * This function will do several things in the following procedure
+ * 1. instantiate a PW_Basis object
+ * 2. autoset the box in both real and reciporcal space
+ * 3. do the FFT in the box with real2recip
+ * 4. return out with qgrid
+ */
+void fft_in_box(const std::complex<double>* in,
+                std::complex<double>* out,
+                const double* a, const double* b, const double* c,
+                const double& ecut,
+                std::vector<ModuleBase::Vector3<double>>& qgrid)
+{
+    ModulePW::PW_Basis pw_basis;
+}
+
+void ifft_in_box(const std::complex<double>* in,
+                 std::complex<double>* out,
+                 const double* a, const double* b, const double* c,
+                 const double& ecut,
+                 const std::vector<ModuleBase::Vector3<double>>& qgrid)
+{
+    ModulePW::PW_Basis pw_basis;
+    ModuleBase::Matrix3 box(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    pw_basis.initgrids(1.0, box, ecut);
+    pw_basis.initparameters(false, ecut, 1, false);
+    pw_basis.setuptransform();
+    pw_basis.collect_local_pw();
+
+
+}
+
+
+
 // Small box FFT then requires another spherical FFT grid that the |q|<2qmax - qc, in which the qmax is
 // the norm of wavevector of the maximal kinetic energy cutoff, usually corresponds to that of ecutrho. 
 // qc always corresponds to ecutwfc.
@@ -361,6 +558,51 @@ void mask(const std::vector<double>& r,
 // grid points can be done by either primitive sampling or FFT by PW_Basis::recip2real.
 
 
+void cal_becp_realspace(const UnitCell& ucell,
+                        const double* psir,
+                        const double rcut, /* this rcut is that of mask function, in Bohr */
+                        double& becp)
+{
+    becp = 0.0;
+
+    for (int it = 0; it < ucell.ntype; it++)
+    {
+        for (int ia = 0; ia < ucell.atoms[it].na; ia++)
+        {
+            const ModuleBase::Vector3<double> pos = ucell.atoms[it].tau[ia];
+            const std::vector<double> pos_ = {pos[0], pos[1], pos[2]};
+            // find indexes range around the atom with a given radius
+            int lix, liy, liz, rix, riy, riz;
+            // find_box_surround_sphere(pos_.data(), rcut);
+
+            // what is tricky is how to handling the case that the grid points
+            // distributed on different processors... seems the startz or sth.
+            // is needed...
+        }
+    }
+}
+
+// calculate sum{r} wm(r)*psi_{nk}(r)*dv
+template <typename T1, typename T2, typename T>
+void cal_ovlp_int_in_box(const T1* in1,
+                         const T2* in2,
+                         const T& dv,
+                         const int nx, const int ny, const int nz,
+                         T& out)
+{
+    #pragma omp parallel for reduction(+:out) schedule(static) collapse(3)
+    for (int i = 0; i < nx; i++)
+    {
+        for (int j = 0; j < ny; j++)
+        {
+            for (int k = 0; k < nz; k++)
+            {
+                out += in1[i*ny*nz+j*nz+k]*in2[i*ny*nz+j*nz+k];
+            }
+        }
+    }
+    out *= dv;
+}
 
 
 

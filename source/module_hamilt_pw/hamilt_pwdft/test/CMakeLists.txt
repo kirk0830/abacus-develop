@@ -23,6 +23,7 @@ AddTest(
 
 AddTest(
 	TARGET radial_proj_test
-	LIBS base device ${math_libs}
+	LIBS base device ${math_libs} planewave
 	SOURCES radial_proj_test.cpp ../radial_proj.cpp
+
 )

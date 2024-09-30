@@ -80,6 +80,9 @@ extern "C"
 	void dsygv_(const int* itype, const char* jobz,const char* uplo, const int* n,
 				double* a,const int* lda,double* b,const int* ldb,
 	 			double* w,double* work,int* lwork,int* info);
+    void dgeev_(const char* jobvl, const char* jobvr, const int* n, double* a, const int* lda,
+                double* wr, double* wi, double* vl, const int* ldvl, double* vr, const int* ldvr,
+                double* work, const int* lwork, int* info);
     // =================================================================================
 
 }
@@ -479,6 +482,13 @@ class LapackWrapper
                              int& info)
     {
         zhegv_(&itype, &jobz, &uplo, &n, a, &lda, b, &ldb, w, work, &lwork, rwork, &info);
+    }
+
+    static inline void dgeev(const char jobvl, const char jobvr, const int n, double* a, const int lda,
+                             double* wr, double* wi, double* vl, const int ldvl, double* vr, const int ldvr,
+                             double* work, const int lwork, int& info)
+    {
+        dgeev_(&jobvl, &jobvr, &n, a, &lda, wr, wi, vl, &ldvl, vr, &ldvr, work, &lwork, &info);
     }
 };
 #endif // LAPACK_HPP

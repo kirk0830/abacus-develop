@@ -8,12 +8,12 @@
 namespace ModuleBase
 {
 
-LebedevLaikovGrid::LebedevLaikovGrid(const int degree)
+Lebedev_laikov_grid::Lebedev_laikov_grid(const int degree)
 {
     auto it = allowed_degree.find(degree);
     if (it == allowed_degree.end())
     {
-        std::cerr << "In the LebedevLaikovGrid class, the degree = " << degree << " is not within the allowed range."
+        std::cerr << "In the Lebedev_laikov_grid class, the degree = " << degree << " is not within the allowed range."
                   << std::endl;
         assert(false);
     }
@@ -23,7 +23,7 @@ LebedevLaikovGrid::LebedevLaikovGrid(const int degree)
     weight = new double[degree];
 }
 
-LebedevLaikovGrid::~LebedevLaikovGrid()
+Lebedev_laikov_grid::~Lebedev_laikov_grid()
 {
     if (grid_coor)
     {
@@ -38,7 +38,7 @@ LebedevLaikovGrid::~LebedevLaikovGrid()
     }
 }
 
-void LebedevLaikovGrid::print_grid_and_weight(std::string filename)
+void Lebedev_laikov_grid::print_grid_and_weight(std::string filename)
 {
     std::stringstream ss;
     ss << filename << "_degree" << degree;
@@ -55,7 +55,7 @@ void LebedevLaikovGrid::print_grid_and_weight(std::string filename)
     ofs.close();
 }
 
-void LebedevLaikovGrid::generate_grid_points()
+void Lebedev_laikov_grid::generate_grid_points()
 {
     int start = 0;
     double a = 0.0;
@@ -4732,7 +4732,7 @@ void LebedevLaikovGrid::generate_grid_points()
     }
 }
 
-int LebedevLaikovGrid::getLebedevReccurencePoints(int type, int start, double a, double b, double v)
+int Lebedev_laikov_grid::getLebedevReccurencePoints(int type, int start, double a, double b, double v)
 {
     double pi = ModuleBase::PI;
     double c = 0.0;

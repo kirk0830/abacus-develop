@@ -113,11 +113,11 @@ class Integral
     // \int_{xmin}^{xmax} f(x) dx = xl \int_{-1}^{1} f(xl * t + xmean) dt
     static void Gauss_Legendre_grid_and_weight(const double xmin, const double xmax, const int n, double *x, double *weights);
 
-    // Grid points and weights used to generate Gauss_Legendre integrals. can be generated with function LebedevLaikovGrid in math_lebedev_laikov.cpp
-    static const double LebedevLaikovGrid110_x[110];
-    static const double LebedevLaikovGrid110_y[110];
-    static const double LebedevLaikovGrid110_z[110];
-    static const double LebedevLaikovGrid110_w[110];
+    // Grid points and weights used to generate Gauss_Legendre integrals. can be generated with function Lebedev_laikov_grid in math_lebedev_laikov.cpp
+    static const double Lebedev_laikov_grid110_x[110];
+    static const double Lebedev_laikov_grid110_y[110];
+    static const double Lebedev_laikov_grid110_z[110];
+    static const double Lebedev_laikov_grid110_w[110];
 };
 
 }

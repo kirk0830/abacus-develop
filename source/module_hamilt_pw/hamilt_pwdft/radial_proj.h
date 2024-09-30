@@ -229,6 +229,10 @@ namespace RadialProjection
      */
     void maskgen(const double& eta, std::vector<double>& mask);
 
+    void maskrgen(const int& m,
+                  const double& eta,
+                  std::vector<double>& maskr);
+
 }
 
 #endif // RADIAL_PROJECTION_H

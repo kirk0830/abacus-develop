@@ -26,7 +26,7 @@ void FR_overlap<T>::set_parameters(
     this->ucell = ucell_in;
     this->FR_container = new hamilt::HContainer<T>(paraV);
     this->radial_grid_num = radial_grid_num;
-    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(degree);
+    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(degree);
     this->Leb_grid->generate_grid_points();
     this->initialize_FR(GridD_in, paraV);
 }
@@ -38,7 +38,7 @@ FR_overlap<T>::FR_overlap(const FR_overlap<T>& FR_in)
     this->ucell = FR_in.ucell;
     this->FR_container = new hamilt::HContainer<T>(*(FR_in.FR_container));
     this->radial_grid_num = FR_in.radial_grid_num;
-    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(FR_in.Leb_grid->degree);
+    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(FR_in.Leb_grid->degree);
     this->Leb_grid->generate_grid_points();
 }
 
@@ -49,7 +49,7 @@ FR_overlap<T>::FR_overlap(FR_overlap<T>&& FR_in)
     this->ucell = FR_in.ucell;
     this->FR_container = std::move(FR_in.FR_container);
     this->radial_grid_num = FR_in.radial_grid_num;
-    this->Leb_grid = new ModuleBase::LebedevLaikovGrid(FR_in.Leb_grid->degree);
+    this->Leb_grid = new ModuleBase::Lebedev_laikov_grid(FR_in.Leb_grid->degree);
     this->Leb_grid->generate_grid_points();
 }
 
