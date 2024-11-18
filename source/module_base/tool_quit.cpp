@@ -1,15 +1,18 @@
-#include "tool_quit.h"
+#include "module_base/tool_quit.h"
+
 #ifdef __MPI
 #include "mpi.h"
+#include "module_base/parallel_global.h"
+#include "module_base/parallel_comm.h"
 #endif
 
 #ifdef __NORMAL
 #else
-#include "global_variable.h"
+#include "module_base/global_variable.h"
 #include "module_parameter/parameter.h"
-#include "global_file.h"
-#include "timer.h"
-#include "memory.h"
+#include "module_base/global_file.h"
+#include "module_base/timer.h"
+#include "module_base/memory.h"
 #endif
 
 namespace ModuleBase
@@ -48,7 +51,8 @@ void QUIT(const int ret)
     std::cout<<" See output information in : "<<PARAM.globalv.global_out_dir<<std::endl;
 #endif
 #ifdef __MPI /* if it is MPI run, finalize first, then exit */
-	MPI_Finalize();
+    Parallel_Global::finalize_mpi(); 
+    /* but seems this is the only correct way to terminate the MPI */
 #endif
     exit(ret);
 }

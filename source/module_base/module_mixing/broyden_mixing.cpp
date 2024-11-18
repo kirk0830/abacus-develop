@@ -49,9 +49,9 @@ void Broyden_Mixing::tem_push_data(Mixing_Data& mdata,
 
     mdata.push(data.data());
 
-    if (!need_calcoef)
+    if (!need_calcoef) {
         return;
-
+    }
     if (address != &mdata && address != nullptr)
         ModuleBase::WARNING_QUIT(
             "Broyden_Mixing",
@@ -63,12 +63,14 @@ void Broyden_Mixing::tem_push_data(Mixing_Data& mdata,
     {
         address = &mdata;
         // allocate
-        if (F != nullptr)
+        if (F != nullptr) {
             free(F);
+        }
         F = malloc(sizeof(FPTYPE) * length);
         FP_F = static_cast<FPTYPE*>(F);
-        if (dF != nullptr)
+        if (dF != nullptr) {
             free(dF);
+        }
         dF = malloc(sizeof(FPTYPE) * length * mixing_ndim);
         FP_dF = static_cast<FPTYPE*>(dF);
 #ifdef _OPENMP
@@ -107,9 +109,11 @@ void Broyden_Mixing::tem_cal_coef(const Mixing_Data& mdata, std::function<double
     ModuleBase::TITLE("Charge_Mixing", "Simplified_Broyden_mixing");
     ModuleBase::timer::tick("Charge", "Broyden_mixing");
     if (address != &mdata && address != nullptr)
+    {
         ModuleBase::WARNING_QUIT(
             "Broyden_mixing",
             "One Broyden_Mixing object can only bind one Mixing_Data object to calculate coefficients");
+    }
     const int length = mdata.length;
     FPTYPE* FP_dF = static_cast<FPTYPE*>(dF);
     FPTYPE* FP_F = static_cast<FPTYPE*>(F);

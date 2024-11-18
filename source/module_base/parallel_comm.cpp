@@ -1,4 +1,4 @@
-#if defined __MPI
+#ifdef __MPI
 
 #include "mpi.h"
 

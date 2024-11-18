@@ -9,6 +9,11 @@ namespace GlobalV
 }
 #ifdef __MPI
 MPI_Comm POOL_WORLD;
+MPI_Comm INTER_POOL = MPI_COMM_NULL;
+MPI_Comm STO_WORLD;
+MPI_Comm PARAPW_WORLD;
+MPI_Comm GRID_WORLD;
+MPI_Comm DIAG_WORLD;
 namespace Parallel_Reduce
 {
     template<typename T> void reduce_all(T& object) { return; };
