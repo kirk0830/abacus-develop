@@ -1,10 +1,13 @@
 #include "broyden_mixing.h"
-
 #include "module_base/lapack_connector.h"
 #include "module_base/memory.h"
 #include "module_base/module_container/base/third_party/blas.h"
 #include "module_base/timer.h"
 #include "module_base/tool_title.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace Base_Mixing
 {
 template void Broyden_Mixing::tem_push_data(Mixing_Data& mdata,
@@ -40,8 +43,9 @@ void Broyden_Mixing::tem_push_data(Mixing_Data& mdata,
     }
 
     // get screened F
-    if (screen != nullptr)
+    if (screen != nullptr) {
         screen(F_tmp.data());
+    }
 
     // container::Tensor data = data_in + mixing_beta * F;
     std::vector<FPTYPE> data(length);
@@ -52,10 +56,12 @@ void Broyden_Mixing::tem_push_data(Mixing_Data& mdata,
     if (!need_calcoef) {
         return;
     }
-    if (address != &mdata && address != nullptr)
+
+    if (address != &mdata && address != nullptr) {
         ModuleBase::WARNING_QUIT(
             "Broyden_Mixing",
             "One Broyden_Mixing object can only bind one Mixing_Data object to calculate coefficients");
+    }
 
     FPTYPE* FP_dF = static_cast<FPTYPE*>(dF);
     FPTYPE* FP_F = static_cast<FPTYPE*>(F);
@@ -154,8 +160,9 @@ void Broyden_Mixing::tem_cal_coef(const Mixing_Data& mdata, std::function<double
         }
         // solve aG = c 
         dsysv_(&uu, &ndim_cal_dF, &m, beta_tmp.c, &ndim_cal_dF, iwork, gamma.data(), &ndim_cal_dF, work, &ndim_cal_dF, &info);
-        if (info != 0)
+        if (info != 0) {
             ModuleBase::WARNING_QUIT("Charge_Mixing", "Error when DSYSV.");
+        }
         // after solving, gamma store the coeficients for mixing
         coef[mdata.start] = 1 + gamma[dFindex_move(0)];
         for (int i = 1; i < ndim_cal_dF; ++i)

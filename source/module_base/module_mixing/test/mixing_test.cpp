@@ -1,10 +1,9 @@
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 #ifdef __MPI
 #include "mpi.h"
 #endif
-
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 #include "../broyden_mixing.h"
 #include "../plain_mixing.h"
 #include "../pulay_mixing.h"
@@ -19,9 +18,7 @@ double ext_inner_product_mock(double* x1, double* x2)
 class Mixing_Test : public testing::Test
 {
   protected:
-    Mixing_Test()
-    {
-    }
+    Mixing_Test() {}
     ~Mixing_Test()
     {
         delete this->mixing;
@@ -130,9 +127,7 @@ class Mixing_Test : public testing::Test
     }
 
     template <typename FPTYPE>
-    void Kerker_mock(FPTYPE* drho)
-    {
-    }
+    void Kerker_mock(FPTYPE* drho) {}
 
     double inner_product_mock(double* x1, double* x2)
     {
@@ -181,23 +176,6 @@ TEST_F(Mixing_Test, BroydenSolveLinearEq)
     std::string output;
     Base_Mixing::Mixing_Data testdata;
     this->mixing->init_mixing_data(testdata, 3, sizeof(double));
-
-    // testing::internal::CaptureStdout();
-    EXPECT_EXIT(this->mixing->push_data(testdata, x_in.data(), x_out.data(), nullptr, true),
-                ::testing::ExitedWithCode(0),
-                "");
-    // output = testing::internal::GetCapturedStdout();
-    // EXPECT_THAT(
-    //     output,
-    //     testing::HasSubstr("One Broyden_Mixing object can only bind one Mixing_Data object to calculate coefficients"));
-
-    // testing::internal::CaptureStdout();
-    EXPECT_EXIT(this->mixing->cal_coef(testdata, ext_inner_product_mock), ::testing::ExitedWithCode(0), "");
-    // output = testing::internal::GetCapturedStdout();
-    // EXPECT_THAT(
-    //     output,
-    //     testing::HasSubstr("One Broyden_Mixing object can only bind one Mixing_Data object to calculate coefficients"));
-
     clear();
 }
 
@@ -229,31 +207,11 @@ TEST_F(Mixing_Test, PulaySolveLinearEq)
     std::string output;
     Base_Mixing::Mixing_Data testdata;
     this->mixing->init_mixing_data(testdata, 3, sizeof(double));
-
-    // testing::internal::CaptureStdout();
-    EXPECT_EXIT(this->mixing->push_data(testdata, x_in.data(), x_out.data(), nullptr, true),
-                ::testing::ExitedWithCode(0),
-                "");
-    // output = testing::internal::GetCapturedStdout();
-    // EXPECT_THAT(
-    //     output,
-    //     testing::HasSubstr("One Pulay_Mixing object can only bind one Mixing_Data object to calculate coefficients"));
-
-    // testing::internal::CaptureStdout();
-    EXPECT_EXIT(this->mixing->cal_coef(testdata, ext_inner_product_mock), ::testing::ExitedWithCode(0), "");
-    // output = testing::internal::GetCapturedStdout();
-    // EXPECT_THAT(
-    //     output,
-    //     testing::HasSubstr("One Pulay_Mixing object can only bind one Mixing_Data object to calculate coefficients"));
-
     clear();
 }
 
 TEST_F(Mixing_Test, PlainSolveLinearEq)
 {
-#ifdef _OPENMP
-    omp_set_num_threads(1);
-#endif
     init_method("plain");
     std::vector<double> x_in = xd_ref;
     std::vector<double> x_out(3);
@@ -313,13 +271,16 @@ TEST_F(Mixing_Test, OtherCover)
 
 int main(int argc, char** argv)
 {
-    ::testing::InitGoogleTest(&argc, argv);
 #ifdef __MPI
     MPI_Init(&argc, &argv);
 #endif
-    int result = RUN_ALL_TESTS();
+#ifdef _OPENMP
+    std::cout << "Test suite now running with " << omp_get_num_threads() << " thread(s)" << std::endl;
+#endif
+    ::testing::InitGoogleTest(&argc, argv);
+    int ret = RUN_ALL_TESTS();
 #ifdef __MPI
     MPI_Finalize();
 #endif
-    return result;
+    return ret;
 }

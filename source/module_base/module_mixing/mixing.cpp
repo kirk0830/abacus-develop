@@ -54,16 +54,17 @@ void Mixing::push_data(Mixing_Data& mdata,
 
 void Mixing::mix_data(const Mixing_Data& mdata, double* data_mix)
 {
-    if (mdata.length <= 0)
+    if (mdata.length <= 0) {
         return;
+    }
     double* FP_data = static_cast<double*>(mdata.data);
     if (mdata.ndim_use == 1)
     {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 512)
-#endif
-        for (int i = 0; i < mdata.length; ++i)
+
+        #pragma omp parallel for schedule(static, 512)
+        for (int i = 0; i < mdata.length; ++i) {
             data_mix[i] = FP_data[i];
+        }
         return;
     }
     container::BlasConnector::gemv('N',
@@ -80,22 +81,24 @@ void Mixing::mix_data(const Mixing_Data& mdata, double* data_mix)
 }
 void Mixing::mix_data(const Mixing_Data& mdata, std::complex<double>* data_mix)
 {
-    if (mdata.length <= 0)
+    if (mdata.length <= 0) {
         return;
+    }
     std::complex<double>* FP_data = static_cast<std::complex<double>*>(mdata.data);
     if (mdata.ndim_use == 1)
     {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 256)
-#endif
-        for (int i = 0; i < mdata.length; ++i)
+
+        #pragma omp parallel for schedule(static, 256)
+        for (int i = 0; i < mdata.length; ++i) {
             data_mix[i] = FP_data[i];
+        }
         return;
     }
     // conver coef to complex
     std::vector<std::complex<double>> coef_complex(coef.size());
-    for (int i = 0; i < coef.size(); ++i)
+    for (int i = 0; i < coef.size(); ++i) {
         coef_complex[i] = coef[i];
+    }
     container::BlasConnector::gemv('N',
                                    mdata.length,
                                    mdata.ndim_use,

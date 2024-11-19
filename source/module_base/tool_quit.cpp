@@ -46,7 +46,7 @@ void QUIT()
     QUIT(0);
 }
 
-void QUIT(const int ret)
+void QUIT(const int exitcode)
 {
 #ifdef __NORMAL /* what is this??? */
 #else
@@ -54,18 +54,20 @@ void QUIT(const int ret)
     ModuleBase::Global_File::close_all_log(GlobalV::MY_RANK);
     std::cout<<" See output information in : "<<PARAM.globalv.global_out_dir<<std::endl;
 #endif
-#ifdef _OPENMP /* avoid the case that death thread calls fork() */
+#ifdef _OPENMP // merge all threads of one process into one thread
     if (omp_in_parallel())
     {
         omp_set_num_threads(1);
-        std::cout << " Threads merged in function ModuleBase::QUIT" << std::endl;
+        std::cout << "Terminating ABACUS with multithreading environment." << std::endl;
     }
+    assert(!omp_in_parallel()); /* avoid the case that death thread calls fork() */
 #endif
 #ifdef __MPI /* if it is MPI run, finalize first, then exit */
-    Parallel_Global::finalize_mpi(); 
+    std::cout << "Terminating ABACUS with multiprocessing environment." << std::endl;
+    Parallel_Global::finalize_mpi();
     /* but seems this is the only correct way to terminate the MPI */
 #endif
-    exit(ret);
+    exit(exitcode);
 }
 
 void WARNING_QUIT(const std::string &file, const std::string &description)
@@ -74,44 +76,37 @@ void WARNING_QUIT(const std::string &file, const std::string &description)
 	/* really? we return with 0? it is something like "we exit the program normally" */
 }
 
-void WARNING_QUIT(const std::string &file, const std::string &description, int ret)
+void WARNING_QUIT(const std::string &file, const std::string &description, int exitcode)
 {
+    const std::string banner = ""
+    " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+    "                         NOTICE                           \n"
+    " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 #ifdef __NORMAL /* what is this??? */
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    std::cout << "                         NOTICE                           " << std::endl;
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    std::cout << banner << std::endl;
 #else
-    std::cout << " " << std::endl;
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    std::cout << "                         NOTICE                           " << std::endl;
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    std::cout << " " << std::endl;
-    std::cout << " " << description << std::endl;
-    std::cout << " CHECK IN FILE : " << PARAM.globalv.global_out_dir << "warning.log" << std::endl;
-    std::cout << " " << std::endl;
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    std::cout << "                         NOTICE                           " << std::endl;
-    std::cout << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-
-
-    GlobalV::ofs_running << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    GlobalV::ofs_running << "                         NOTICE                           " << std::endl;
-    GlobalV::ofs_running << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    GlobalV::ofs_running << std::endl;
-    GlobalV::ofs_running << " " << description << std::endl;
-    GlobalV::ofs_running << " CHECK IN FILE : " << PARAM.globalv.global_out_dir << "warning.log" << std::endl;
-    GlobalV::ofs_running << std::endl;
-    GlobalV::ofs_running << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    GlobalV::ofs_running << "                         NOTICE                           " << std::endl;
-    GlobalV::ofs_running << " !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-
+    std::cout << banner.size() << std::endl;
+    const int max_width = banner.size() / 3 - 1; // minus 1 because of the "\n"
+    // wrap the description
+    std::string wrapped_desc = "";
+    std::string::size_type pos = 0;
+    while (pos < description.size())
+    {
+        wrapped_desc += " ";
+        wrapped_desc += description.substr(pos, max_width - 2);
+        // because the leading whitespace and tailing "\n"
+        wrapped_desc += "\n";
+        pos += max_width - 2;
+    }
+    const std::string warnmsg = "\n"
+    " " + wrapped_desc + "\n"
+    " CHECK IN FILE : " + PARAM.globalv.global_out_dir + "warning.log\n\n";
+    std::cout << "\n" << banner << warnmsg << banner << std::endl;
+    GlobalV::ofs_running << "\n" << banner << warnmsg << banner << std::endl;
     WARNING(file,description);
     GlobalV::ofs_running<<" Check in file : "<<PARAM.globalv.global_out_dir<<"warning.log"<<std::endl;
 #endif
-#ifdef __MPI
-    std::cout << "Terminating multiprocessing environment..." << std::endl;
-#endif
-    QUIT(ret);
+    QUIT(exitcode);
 }
 
 //Check and print warning information for all cores.
