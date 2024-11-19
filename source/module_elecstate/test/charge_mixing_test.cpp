@@ -10,7 +10,10 @@
 #include "module_basis/module_pw/pw_basis.h"
 #include "module_hamilt_general/module_xc/xc_functional.h"
 #undef private
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 int FUNC_TYPE = 1;
 
