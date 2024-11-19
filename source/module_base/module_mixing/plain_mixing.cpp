@@ -29,9 +29,8 @@ void Plain_Mixing::tem_push_data(Mixing_Data& mdata,
 {
     const size_t length = mdata.length;
     std::vector<FPTYPE> F_tmp(length);
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+    #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
     for (int i = 0; i < length; ++i)
     {
         F_tmp[i] = data_out[i] - data_in[i];
@@ -67,9 +66,8 @@ void Plain_Mixing::simple_mix(FPTYPE* data_new,
 {
     if (screen == nullptr)
     {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+        #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
         for (int ig = 0; ig < length; ig++)
         {
             data_new[ig] = data_in[ig] + this->mixing_beta * (data_out[ig] - data_in[ig]);
@@ -78,17 +76,15 @@ void Plain_Mixing::simple_mix(FPTYPE* data_new,
     else
     {
         std::vector<FPTYPE> F_tmp(length);
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+        #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
         for (int i = 0; i < length; ++i)
         {
             F_tmp[i] = data_out[i] - data_in[i];
         }
         screen(F_tmp.data());
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+        #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
         for (int i = 0; i < length; ++i)
         {
             data_new[i] = data_in[i] + this->mixing_beta * F_tmp[i];

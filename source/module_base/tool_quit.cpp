@@ -6,6 +6,10 @@
 #include "module_base/parallel_comm.h"
 #endif
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #ifdef __NORMAL
 #else
 #include "module_base/global_variable.h"
@@ -49,6 +53,13 @@ void QUIT(const int ret)
     ModuleBase::timer::finish(GlobalV::ofs_running , !GlobalV::MY_RANK);
     ModuleBase::Global_File::close_all_log(GlobalV::MY_RANK);
     std::cout<<" See output information in : "<<PARAM.globalv.global_out_dir<<std::endl;
+#endif
+#ifdef _OPENMP /* avoid the case that death thread calls fork() */
+    if (omp_in_parallel())
+    {
+        omp_set_num_threads(1);
+        std::cout << " Threads merged in function ModuleBase::QUIT" << std::endl;
+    }
 #endif
 #ifdef __MPI /* if it is MPI run, finalize first, then exit */
     Parallel_Global::finalize_mpi(); 
@@ -96,7 +107,9 @@ void WARNING_QUIT(const std::string &file, const std::string &description, int r
 
     WARNING(file,description);
     GlobalV::ofs_running<<" Check in file : "<<PARAM.globalv.global_out_dir<<"warning.log"<<std::endl;
-
+#endif
+#ifdef __MPI
+    std::cout << "Terminating multiprocessing environment..." << std::endl;
 #endif
     QUIT(ret);
 }

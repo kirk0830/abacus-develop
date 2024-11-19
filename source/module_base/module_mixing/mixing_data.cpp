@@ -15,16 +15,20 @@ Mixing_Data::Mixing_Data(const int& ndim, const int& length, const size_t& type_
 
 Mixing_Data::~Mixing_Data()
 {
-    if (this->data != nullptr)
+    if (this->data != nullptr) {
         free(this->data);
+        this->data = nullptr;
+    }
 }
 
 void Mixing_Data::resize(const int& ndim, const int& length, const size_t& type_size)
 {
     this->ndim_tot = ndim;
     this->length = length;
-    if (this->data != nullptr)
+    if (this->data != nullptr) {
         free(this->data);
+        this->data = nullptr;
+    }
     if (ndim * length > 0)
     {
         this->data = malloc(ndim * length * type_size);

@@ -31,17 +31,17 @@ void Pulay_Mixing::tem_push_data(Mixing_Data& mdata,
     const size_t length = mdata.length;
     std::vector<FPTYPE> F_tmp(length);
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+    #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
     for (int i = 0; i < length; ++i)
     {
         F_tmp[i] = data_out[i] - data_in[i];
     }
 
     // get screened F
-    if (screen != nullptr)
+    if (screen != nullptr) {
         screen(F_tmp.data());
+    }
 
     // container::Tensor data = data_in + mixing_beta * F;
     std::vector<FPTYPE> data(length);
@@ -49,26 +49,28 @@ void Pulay_Mixing::tem_push_data(Mixing_Data& mdata,
 
     mdata.push(data.data());
 
-    if (!need_calcoef)
+    if (!need_calcoef) {
         return;
+    }
 
-    if (address != &mdata && address != nullptr)
+    if (address != &mdata && address != nullptr) {
         ModuleBase::WARNING_QUIT(
             "Pulay_Mixing",
             "One Pulay_Mixing object can only bind one Mixing_Data object to calculate coefficients");
+    }
 
     FPTYPE* FP_F = static_cast<FPTYPE*>(F);
     if (mdata.ndim_use == 1)
     {
         address = &mdata;
         // allocate
-        if (F != nullptr)
+        if (F != nullptr) {
             free(F);
+        }
         F = malloc(sizeof(FPTYPE) * length * mixing_ndim);
         FP_F = static_cast<FPTYPE*>(F);
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+        #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
         for (int i = 0; i < length; ++i)
         {
             FP_F[i] = F_tmp[i];
@@ -78,9 +80,8 @@ void Pulay_Mixing::tem_push_data(Mixing_Data& mdata,
     {
         start_F = (this->start_F + 1) % this->mixing_ndim;
         FPTYPE* FP_startF = FP_F + start_F * length;
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
-#endif
+
+        #pragma omp parallel for schedule(static, 4096 / sizeof(FPTYPE))
         for (int i = 0; i < length; ++i)
         {
             FP_startF[i] = F_tmp[i];
@@ -99,10 +100,11 @@ void Pulay_Mixing::tem_cal_coef(const Mixing_Data& mdata, std::function<double(F
 {
     ModuleBase::TITLE("Charge_Mixing", "Pulay_mixing");
     ModuleBase::timer::tick("Charge", "Pulay_mixing");
-    if (address != &mdata && address != nullptr)
+    if (address != &mdata && address != nullptr) {
         ModuleBase::WARNING_QUIT(
             "Pulay_mixing",
             "One Pulay_Mixing object can only bind one Mixing_Data object to calculate coefficients");
+    }
     const int length = mdata.length;
     FPTYPE* FP_F = static_cast<FPTYPE*>(F);
 
@@ -137,11 +139,13 @@ void Pulay_Mixing::tem_cal_coef(const Mixing_Data& mdata, std::function<double(F
         char uu = 'U';
         int info;
         dsytrf_(&uu, &ndim_use, beta_tmp.c, &ndim_use, iwork, work, &ndim_use, &info);
-        if (info != 0)
+        if (info != 0) {
             ModuleBase::WARNING_QUIT("Charge_Mixing", "Error when factorizing beta.");
+        }
         dsytri_(&uu, &ndim_use, beta_tmp.c, &ndim_use, iwork, work, &info);
-        if (info != 0)
+        if (info != 0) {
             ModuleBase::WARNING_QUIT("Charge_Mixing", "Error when DSYTRI beta.");
+        }
         for (int i = 0; i < ndim_use; ++i)
         {
             for (int j = i + 1; j < ndim_use; ++j)

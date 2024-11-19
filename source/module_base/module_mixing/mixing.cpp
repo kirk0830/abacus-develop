@@ -17,9 +17,8 @@ void Mixing::push_data(Mixing_Data& mdata,
         data_out,
         screen,
         [this, length](double* out, const double* in, const double* sres) {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 512)
-#endif
+
+            #pragma omp parallel for schedule(static, 512)
             for (int i = 0; i < length; ++i)
             {
                 out[i] = in[i] + this->mixing_beta * sres[i];
@@ -42,9 +41,8 @@ void Mixing::push_data(Mixing_Data& mdata,
         data_out,
         screen,
         [this, length](std::complex<double>* out, const std::complex<double>* in, const std::complex<double>* sres) {
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static, 256)
-#endif
+
+            #pragma omp parallel for schedule(static, 256)
             for (int i = 0; i < length; ++i)
             {
                 out[i] = in[i] + this->mixing_beta * sres[i];
