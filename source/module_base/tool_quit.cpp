@@ -99,7 +99,7 @@ void WARNING_QUIT(const std::string &file, const std::string &description, int e
         pos += max_width - 2;
     }
     const std::string warnmsg = "\n"
-    " " + wrapped_desc + "\n"
+    " " + description + "\n"
     " CHECK IN FILE : " + PARAM.globalv.global_out_dir + "warning.log\n\n";
     std::cout << "\n" << banner << warnmsg << banner << std::endl;
     GlobalV::ofs_running << "\n" << banner << warnmsg << banner << std::endl;
