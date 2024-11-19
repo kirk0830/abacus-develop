@@ -32,7 +32,7 @@ void WARNING(const std::string &file, const std::string &description);
  * @brief Close .log files and exit
  *
  */
-[[noreturn]] void QUIT(void);
+[[noreturn]] void QUIT();
 
 /**
  * @brief Close .log files and exit
