@@ -12,6 +12,15 @@
 #endif
 
 template<typename T, typename Device>
+PsiInitializer<T, Device>::PsiInitializer()
+{
+    // the following line will simultaneously run by CPU and GPU
+    // For CPU, this->device will get value base_device::CpuDevice
+    // For GPU, this->device will get value base_device::GpuDevice
+    this->device = base_device::get_device_type<Device>(this->ctx);
+}
+
+template<typename T, typename Device>
 psi::Psi<std::complex<double>>* PsiInitializer<T, Device>::allocate(const bool only_psig)
 {
     ModuleBase::timer::tick("PsiInitializer", "allocate");
@@ -92,7 +101,7 @@ psi::Psi<std::complex<double>>* PsiInitializer<T, Device>::allocate(const bool o
     this->d_psig_ = new psi::Psi<T, Device>(nks_psig, 
                                             nbands_actual, 
                                             nbasis_actual, 
-                                            this->pw_wfc_->npwk);
+                                            this->pw_wfc_->npwk); // psig can be directly allocate on GPU
 
     double memory_cost_psig = 
             nks_psig * nbands_actual * this->pw_wfc_->npwk_max * PARAM.globalv.npol * sizeof(T);

@@ -68,7 +68,7 @@ class PsiInitializer
     public:
         // technical notes:
         // Polymorphism is used to implement different methods, and achieved by pointers and virtual functions
-        PsiInitializer() {};
+        PsiInitializer();
         virtual ~PsiInitializer() {};
         #ifdef __MPI // MPI additional implementation
         /// @brief initialize the PsiInitializer with external data and methods
@@ -197,7 +197,10 @@ class PsiInitializer
         // refactored psig, in old version it is of datatype Psi<T, Device>*, use std::shared_ptr to
         // avoid memory leak
         // std::shared_ptr<psi::Psi<T, Device>> psig_;
-
+        
+        Device* ctx = {}; // device information carrier. The ctx can have type DEVICE_CPU or DEVICE_GPU
+        base_device::DEVICE_CPU* cpu_ctx = {};
+        base_device::AbacusDevice_t device = {};
         psi::Psi<T, Device>* d_psig_ = nullptr; // is it possible to directly operate data on GPU?
     private:
         int mem_saver_ = 0;

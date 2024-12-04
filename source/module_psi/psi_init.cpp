@@ -28,6 +28,19 @@ PSIInit<T, Device>::PSIInit(const std::string& init_wfc_in,
 }
 
 template <typename T, typename Device>
+PSIInit<T, Device>::~PSIInit()
+{
+    if (this->use_psiinitializer)
+    {
+        {
+            this->psi_init->deallocate_psig();
+            // delete this->psi_init;
+            // this->psi_init = nullptr;  
+        }
+    }
+}
+
+template <typename T, typename Device>
 void PSIInit<T, Device>::prepare_init(Structure_Factor* p_sf,
                                       UnitCell* p_ucell,
                                       const int& random_seed,
