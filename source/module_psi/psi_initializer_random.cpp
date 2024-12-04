@@ -61,7 +61,7 @@ void PsiInitializerRandom<T, Device>::proj_ao_onkG(const int ik)
     ModuleBase::timer::tick("PsiInitializerRandom", "initialize");
     const int ik_psig = (this->d_psig_->get_nk() == 1) ? 0 : ik;
     this->d_psig_->fix_k(ik_psig);
-    this->random(this->d_psig_->get_pointer(), 0, this->psig_->get_nbands(), ik);
+    this->random(this->d_psig_->get_pointer(), 0, this->d_psig_->get_nbands(), ik);
     ModuleBase::timer::tick("PsiInitializerRandom", "initialize");
 }
 

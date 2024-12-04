@@ -17,7 +17,7 @@ class PSIInit
             const std::string& basis_type_in,
             const bool& use_psiinitializer_in,
             ModulePW::PW_Basis_K* pw_wfc_in);
-    ~PSIInit(){};
+    ~PSIInit(){ this->psi_init->deallocate_psig(); }
 
     // prepare the wavefunction initialization
     void prepare_init(Structure_Factor* p_sf, //< structure factor

@@ -165,8 +165,8 @@ template <typename T, typename Device>
 void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
 {
     ModuleBase::timer::tick("PsiInitializerAtomic", "proj_ao_onkG");
-    const int ik_psig = (this->psig_->get_nk() == 1) ? 0 : ik;
-    this->psig_->fix_k(ik_psig);
+    const int ik_psig = (this->d_psig_->get_nk() == 1) ? 0 : ik;
+    this->d_psig_->fix_k(ik_psig);
     //this->print_status(psi);
     const int npw = this->pw_wfc_->npwk[ik];
     int lmax = this->p_ucell_->lmax_ppwf;
@@ -247,7 +247,7 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
                                                 }
                                                 for(int ig = 0; ig < npw; ig++)
                                                 {
-                                                    (*(this->psig_))(index, 
+                                                    (*(this->d_psig_))(index, 
                                                                     ig + this->pw_wfc_->npwk_max*is ) =
                                                                         this->template cast_to_T<T>(
                                                                             lphase * cg_coeffs[is] * sk[ig] * aux[ig] * ovlp_pswfcjlg[ig]
@@ -258,7 +258,7 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
                                             {
                                                 for(int ig=0; ig < npw; ig++)
                                                 {
-                                                    (*(this->psig_))(index, 
+                                                    (*(this->d_psig_))(index, 
                                                                     ig + this->pw_wfc_->npwk_max*is ) = 
                                                                         this->template cast_to_T<T>(
                                                                             std::complex<double>(0.0, 0.0)
@@ -339,16 +339,16 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
                                         fdw = phase_factor(0.5*alpha, -1)*aux[ig];
                                         //build the orthogonal wfc
                                         //first rotation with angle (alpha + ModuleBase::PI) around (OX)
-                                        (*(this->psig_))(index, ig) = 
+                                        (*(this->d_psig_))(index, ig) = 
                                             this->template cast_to_T<T>(phase_factor(0.5*gamma, 0)*fup);
-                                        (*(this->psig_))(index, ig+this->pw_wfc_->npwk_max) = 
+                                        (*(this->d_psig_))(index, ig+this->pw_wfc_->npwk_max) = 
                                             this->template cast_to_T<T>(phase_factor(-0.5*gamma, 0)*fdw);
                                         //second rotation with angle gamma around(OZ)
                                         fup = phase_factor(0.5*(alpha + ModuleBase::PI),  1)*aux[ig];
                                         fdw = phase_factor(0.5*(alpha + ModuleBase::PI), -1)*aux[ig];
-                                        (*(this->psig_))(index+2*l+1, ig) = 
+                                        (*(this->d_psig_))(index+2*l+1, ig) = 
                                             this->template cast_to_T<T>(phase_factor(0.5*gamma, 0)*fup);
-                                        (*(this->psig_))(index+2*l+1, ig+this->pw_wfc_->npwk_max) = 
+                                        (*(this->d_psig_))(index+2*l+1, ig+this->pw_wfc_->npwk_max) = 
                                             this->template cast_to_T<T>(phase_factor(-0.5*gamma, 0)*fdw);
                                     }
                                     index++;
@@ -385,22 +385,22 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
                                      fdown = ModuleBase::IMAG_UNIT * sin(0.5* alpha) * aux[ig];
                                      //build the orthogonal wfc
                                      //first rotation with angle(alpha+ModuleBase::PI) around(OX)
-                                     (*(this->psig_))(index, ig) = 
+                                     (*(this->d_psig_))(index, ig) = 
                                         this->template cast_to_T<T>(
                                             (cos(0.5*gamman) + ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fup
                                                 );
-                                     (*(this->psig_))(index, ig+ this->pw_wfc_->npwk_max) = 
+                                     (*(this->d_psig_))(index, ig+ this->pw_wfc_->npwk_max) = 
                                         this->template cast_to_T<T>(
                                             (cos(0.5*gamman) - ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fdown
                                                 );
                                      //second rotation with angle gamma around(OZ)
                                      fup = cos(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
                                      fdown = ModuleBase::IMAG_UNIT * sin(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
-                                     (*(this->psig_))(index+2*l+1, ig) = 
+                                     (*(this->d_psig_))(index+2*l+1, ig) = 
                                         this->template cast_to_T<T>(
                                             (cos(0.5*gamman) + ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fup
                                                 );
-                                     (*(this->psig_))(index+2*l+1, ig+ this->pw_wfc_->npwk_max) = 
+                                     (*(this->d_psig_))(index+2*l+1, ig+ this->pw_wfc_->npwk_max) = 
                                         this->template cast_to_T<T>(
                                             (cos(0.5*gamman) - ModuleBase::IMAG_UNIT * sin(0.5*gamman)) * fdown
                                                 );
@@ -417,7 +417,7 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
                             const int lm = l * l + m;
                             for (int ig = 0; ig < npw; ig++)
                             {
-                                (*(this->psig_))(index, ig) = 
+                                (*(this->d_psig_))(index, ig) = 
                                     this->template cast_to_T<T>(
                                         lphase * sk [ig] * ylm(lm, ig) * ovlp_pswfcjlg[ig]
                                             );
@@ -433,7 +433,7 @@ void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
 	/* complement the rest of bands if there are */
 	if(this->nbands_complem() > 0)
 	{
-		this->random_t(this->psig_->get_pointer(), index, this->psig_->get_nbands(), ik);
+		this->random_t(this->d_psig_->get_pointer(), index, this->d_psig_->get_nbands(), ik);
 	}
     ModuleBase::timer::tick("PsiInitializerAtomic", "proj_ao_onkG");
 }

@@ -155,7 +155,8 @@ class PsiInitializer
         void deallocate_psig()
         { 
             // this->psig_.reset();
-            delete this->d_psig_; 
+            delete this->d_psig_;
+            this->d_psig_ = nullptr;
         }
         // tool methods
         // the following function is for compatibility concern, in ESolver_KS_PW the FPTYPE

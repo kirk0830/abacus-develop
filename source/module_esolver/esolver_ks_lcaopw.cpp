@@ -139,15 +139,15 @@ namespace ModuleESolver
         // It is not a good choice to overload another solve function here, this will spoil the concept of
         // multiple inheritance and polymorphism. But for now, we just do it in this way.
         // In the future, there will be a series of class ESolver_KS_LCAO_PW, HSolver_LCAO_PW and so on.
-        std::weak_ptr<psi::Psi<T>> psig = this->p_wf_init->get_psig();
+        auto psig = this->p_wf_init->get_psig();
 
-        if (psig.expired())
+        if (/*psig.expired()*/ psig == nullptr)
         {
             ModuleBase::WARNING_QUIT("ESolver_KS_PW::hamilt2density_single", "psig lifetime is expired");
         }
 
         hsolver::HSolverLIP<T> hsolver_lip_obj(this->pw_wfc);
-        hsolver_lip_obj.solve(this->p_hamilt, this->kspw_psi[0], this->pelec, psig.lock().get()[0], skip_charge);
+        hsolver_lip_obj.solve(this->p_hamilt, this->kspw_psi[0], this->pelec, psig[0], skip_charge);
 
         // add exx
 #ifdef __EXX
