@@ -9,7 +9,7 @@
 
 #ifdef __MPI
 template <typename T, typename Device>
-void psi_initializer_random<T, Device>::initialize(Structure_Factor* sf,
+void PsiInitializerRandom<T, Device>::initialize(Structure_Factor* sf,
                                                    ModulePW::PW_Basis_K* pw_wfc,
                                                    UnitCell* p_ucell,
                                                    Parallel_Kpoints* p_parakpts,
@@ -28,7 +28,7 @@ void psi_initializer_random<T, Device>::initialize(Structure_Factor* sf,
 }
 #else
 template <typename T, typename Device>
-void psi_initializer_random<T, Device>::initialize(Structure_Factor* sf,
+void PsiInitializerRandom<T, Device>::initialize(Structure_Factor* sf,
                                                   ModulePW::PW_Basis_K* pw_wfc,
                                                   UnitCell* p_ucell,
                                                   const int& random_seed,
@@ -45,35 +45,35 @@ void psi_initializer_random<T, Device>::initialize(Structure_Factor* sf,
 #endif
 
 template <typename T, typename Device>
-void psi_initializer_random<T, Device>::random(T* psi,
+void PsiInitializerRandom<T, Device>::random(T* psi,
                                                const int iw_start,
                                                const int iw_end,
                                                const int ik)
 {
-    ModuleBase::timer::tick("psi_initializer_random", "random");
+    ModuleBase::timer::tick("PsiInitializerRandom", "random");
     this->random_t(psi, iw_start, iw_end, ik);
-    ModuleBase::timer::tick("psi_initializer_random", "random");
+    ModuleBase::timer::tick("PsiInitializerRandom", "random");
 }
 
 template <typename T, typename Device>
-void psi_initializer_random<T, Device>::proj_ao_onkG(const int ik)
+void PsiInitializerRandom<T, Device>::proj_ao_onkG(const int ik)
 {
-    ModuleBase::timer::tick("psi_initializer_random", "initialize");
-    const int ik_psig = (this->psig_->get_nk() == 1) ? 0 : ik;
-    this->psig_->fix_k(ik_psig);
-    this->random(this->psig_->get_pointer(), 0, this->psig_->get_nbands(), ik);
-    ModuleBase::timer::tick("psi_initializer_random", "initialize");
+    ModuleBase::timer::tick("PsiInitializerRandom", "initialize");
+    const int ik_psig = (this->d_psig_->get_nk() == 1) ? 0 : ik;
+    this->d_psig_->fix_k(ik_psig);
+    this->random(this->d_psig_->get_pointer(), 0, this->psig_->get_nbands(), ik);
+    ModuleBase::timer::tick("PsiInitializerRandom", "initialize");
 }
 
-template class psi_initializer_random<std::complex<double>, base_device::DEVICE_CPU>;
-template class psi_initializer_random<std::complex<float>, base_device::DEVICE_CPU>;
+template class PsiInitializerRandom<std::complex<double>, base_device::DEVICE_CPU>;
+template class PsiInitializerRandom<std::complex<float>, base_device::DEVICE_CPU>;
 // gamma point calculation
-template class psi_initializer_random<double, base_device::DEVICE_CPU>;
-template class psi_initializer_random<float, base_device::DEVICE_CPU>;
+template class PsiInitializerRandom<double, base_device::DEVICE_CPU>;
+template class PsiInitializerRandom<float, base_device::DEVICE_CPU>;
 #if ((defined __CUDA) || (defined __ROCM))
-template class psi_initializer_random<std::complex<double>, base_device::DEVICE_GPU>;
-template class psi_initializer_random<std::complex<float>, base_device::DEVICE_GPU>;
+template class PsiInitializerRandom<std::complex<double>, base_device::DEVICE_GPU>;
+template class PsiInitializerRandom<std::complex<float>, base_device::DEVICE_GPU>;
 // gamma point calculation
-template class psi_initializer_random<double, base_device::DEVICE_GPU>;
-template class psi_initializer_random<float, base_device::DEVICE_GPU>;
+template class PsiInitializerRandom<double, base_device::DEVICE_GPU>;
+template class PsiInitializerRandom<float, base_device::DEVICE_GPU>;
 #endif

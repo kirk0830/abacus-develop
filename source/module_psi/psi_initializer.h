@@ -41,7 +41,7 @@ A practical example would be in ESolver_KS_PW, because polymorphism is achieved 
 pointer, while a raw pointer is risky, therefore std::unique_ptr is a better 
 choice.
 1. new a std::unique_ptr<psi_initializer<T, Device>> with specific derived class
-2. initialize() to link psi_initializer with external data and methods
+2. initialize() to link PsiInitializer with external data and methods
 3. allocate() to allocate memory for psi
 4. tabulate() to calculate the interpolate table
 5. proj_ao_onkG() to calculate projection of atomic radial function onto planewave basis
@@ -50,22 +50,28 @@ choice.
 In summary:
 new->initialize->allocate->tabulate->proj_ao_onkG->share_psig
 - REPRESENTATION TRANSFORM
-There is also another way to use psi_initializer, say the representation transform.
+There is also another way to use PsiInitializer, say the representation transform.
 For this kind of use, see module_io/to_wannier90_lcao_in_pw, use allocate(true) instead
 of allocate() to only allocate memory for psig, then use share_psig() to get value.
+
+- SPECIAL TOPIC: GPU
+Psi initialization operation is a good candidate for GPU acceleration, because the PW components
+are highly independent, the threading is easy to implement. The most highly-computational-demanding
+parts are two, the first is the building of interpolation table and the second is based on
+the interpolation table, calculate the value for each |G>.
 */
 template<typename T, typename Device>
-class psi_initializer
+class PsiInitializer
 {
     private:
         using Real = typename GetTypeReal<T>::type;
     public:
         // technical notes:
         // Polymorphism is used to implement different methods, and achieved by pointers and virtual functions
-        psi_initializer() {};
-        virtual ~psi_initializer() {};
+        PsiInitializer() {};
+        virtual ~PsiInitializer() {};
         #ifdef __MPI // MPI additional implementation
-        /// @brief initialize the psi_initializer with external data and methods
+        /// @brief initialize the PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,              //< structure factor
                                 ModulePW::PW_Basis_K*,          //< planewave basis
                                 UnitCell*,                      //< unit cell
@@ -81,7 +87,7 @@ class psi_initializer
                            const int& ir,       //< ir
                            Real* out) const;    //< out
         #else
-        /// @brief serial version of initialize function, link psi_initializer with external data and methods
+        /// @brief serial version of initialize function, link PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,                  //< structure factor
                                 ModulePW::PW_Basis_K*,              //< planewave basis
                                 UnitCell*,                          //< unit cell
@@ -99,9 +105,16 @@ class psi_initializer
                             const int iw_start,     //< iw_start, starting band index
                             const int iw_end,       //< iw_end, ending band index
                             const int ik)           //< ik, kpoint index
-        { ModuleBase::WARNING_QUIT("psi_initializer::random", "Polymorphism error"); }
+        {
+            ModuleBase::WARNING_QUIT("PsiInitializer::random", 
+                                     "Polymorphism error: this function should not be called"); 
+        }
         /// @brief CENTRAL FUNCTION: allocate interpolate table recording overlap integral between radial function and Spherical Bessel function
-        virtual void allocate_table() { ModuleBase::WARNING_QUIT("psi_initializer::create_ovlp_table", "Polymorphism error"); }
+        virtual void allocate_table() 
+        { 
+            ModuleBase::WARNING_QUIT("PsiInitializer::create_ovlp_table", 
+                                     "Polymorphism error: this function should not be called"); 
+        }
         /// @brief CENTRAL FUNCTION: calculate the interpolate table
         virtual void tabulate() = 0;
         /// @brief CENTRAL FUNCTION: calculate projection of atomic radial function onto planewave basis BASED ON THE OVERLAP TABLE
@@ -121,8 +134,13 @@ class psi_initializer
         // because unique_ptr is not copyable or used as rvlaue, use shared_ptr instead
         // but to avoid ownership issue, use weak_ptr to share the pointer
         // therefore there is no really getter to get directly the shared_ptr.
-        std::weak_ptr<psi::Psi<T, Device>> share_psig() { return this->psig_; }
-        int psig_use_count() { return this->psig_.use_count(); }
+        // std::weak_ptr<psi::Psi<T, Device>> share_psig() { return this->psig_; }
+        psi::Psi<T, Device>* share_psig() { return this->d_psig_; }
+        int psig_use_count() const
+        {
+            // return this->psig_.use_count();
+            return static_cast<int>(this->d_psig_ != nullptr);
+        }
 
         void set_ucell(UnitCell* p_ucell_in) { this->p_ucell_ = p_ucell_in; }
         void set_pspot_nl(pseudopot_cell_vnl* p_pspot_nl_in) { this->p_pspot_nl_ = p_pspot_nl_in; }
@@ -134,7 +152,11 @@ class psi_initializer
         void set_mem_saver(const int mem_saver_in) { this->mem_saver_ = mem_saver_in; }
         void set_method(std::string method_in) { this->method_ = method_in; }
         void set_nbands_complem(int nbands_in) { this->nbands_complem_ = nbands_in; }
-        void deallocate_psig() { this->psig_.reset(); }
+        void deallocate_psig()
+        { 
+            // this->psig_.reset();
+            delete this->d_psig_; 
+        }
         // tool methods
         // the following function is for compatibility concern, in ESolver_KS_PW the FPTYPE
         // now support double, float, std::complex<double> and std::complex<float>
@@ -158,7 +180,7 @@ class psi_initializer
         // getgpluskcar...
         ModulePW::PW_Basis_K* pw_wfc_ = nullptr;
         // interface to UnitCell. UnitCell should be singleton and keep const for most cases. Due to
-        // many data are needed to read by psi_initializer, get a pointer to UnitCell instead of
+        // many data are needed to read by PsiInitializer, get a pointer to UnitCell instead of
         // importing all information one-by-one in parameter list.
         UnitCell* p_ucell_ = nullptr;
         #ifdef __MPI
@@ -173,7 +195,9 @@ class psi_initializer
         std::vector<int> ixy2is_;
         // refactored psig, in old version it is of datatype Psi<T, Device>*, use std::shared_ptr to
         // avoid memory leak
-        std::shared_ptr<psi::Psi<T, Device>> psig_;
+        // std::shared_ptr<psi::Psi<T, Device>> psig_;
+
+        psi::Psi<T, Device>* d_psig_ = nullptr; // is it possible to directly operate data on GPU?
     private:
         int mem_saver_ = 0;
         std::string method_ = "none";

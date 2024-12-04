@@ -29,7 +29,7 @@ I don't know why some variables are distributed while others not... for example 
 We need not only read and import, but also distribute here
 */
 
-// free function, not needed to be a member of psi_initializer_nao
+// free function, not needed to be a member of PsiInitializerNAO
 void normalize(const std::vector<double>& r, std::vector<double>& flz)
 {
     std::vector<double> flz2r2(r.size());
@@ -43,9 +43,9 @@ void normalize(const std::vector<double>& r, std::vector<double>& flz)
 }
 
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::read_external_orbs(std::string* orbital_files, const int& rank)
+void PsiInitializerNAO<T, Device>::read_external_orbs(std::string* orbital_files, const int& rank)
 {
-    ModuleBase::timer::tick("psi_initializer_nao", "read_external_orbs");
+    ModuleBase::timer::tick("PsiInitializerNAO", "read_external_orbs");
 
     this->orbital_files_.resize(this->p_ucell_->ntype);
     this->nr_.resize(this->p_ucell_->ntype);
@@ -75,14 +75,14 @@ void psi_initializer_nao<T, Device>::read_external_orbs(std::string* orbital_fil
 #endif
         if (!is_open)
         {
-            GlobalV::ofs_warning << "psi_initializer_nao<T, Device>::read_orbital_files: cannot open orbital file: "
+            GlobalV::ofs_warning << "PsiInitializerNAO<T, Device>::read_orbital_files: cannot open orbital file: "
                                     << this->orbital_files_[it] << std::endl;
-            ModuleBase::WARNING_QUIT("psi_initializer_nao<T, Device>::read_orbital_files",
+            ModuleBase::WARNING_QUIT("PsiInitializerNAO<T, Device>::read_orbital_files",
                                         "cannot open orbital file.");
         }
         else
         {
-            GlobalV::ofs_running << "psi_initializer_nao<T, Device>::read_orbital_files: reading orbital file: "
+            GlobalV::ofs_running << "PsiInitializerNAO<T, Device>::read_orbital_files: reading orbital file: "
                                     << this->orbital_files_[it] << std::endl;
         }
         std::string elem; // garbage value, will discard
@@ -119,11 +119,11 @@ void psi_initializer_nao<T, Device>::read_external_orbs(std::string* orbital_fil
             std::copy(radials[ichi].begin(), radials[ichi].end(), this->chi_[it][ichi].begin());
         }
     }
-    ModuleBase::timer::tick("psi_initializer_nao", "read_external_orbs");
+    ModuleBase::timer::tick("PsiInitializerNAO", "read_external_orbs");
 }
 
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::allocate_table()
+void PsiInitializerNAO<T, Device>::allocate_table()
 {
     // find correct dimension for ovlp_flzjlq
     int ntype = this->p_ucell_->ntype;
@@ -142,7 +142,7 @@ void psi_initializer_nao<T, Device>::allocate_table()
     }
     if (nzeta_max == 0)
     {
-        ModuleBase::WARNING_QUIT("psi_initializer_nao<T, Device>::psi_initializer_nao",
+        ModuleBase::WARNING_QUIT("PsiInitializerNAO<T, Device>::allocate_table",
                                  "there is not ANY numerical atomic orbital read in present system, quit.");
     }
     // allocate a map (it, l, izeta) -> i, should allocate memory of ntype * lmax * nzeta_max
@@ -151,7 +151,7 @@ void psi_initializer_nao<T, Device>::allocate_table()
 
 #ifdef __MPI
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::initialize(Structure_Factor* sf,
+void PsiInitializerNAO<T, Device>::initialize(Structure_Factor* sf,
                                                 ModulePW::PW_Basis_K* pw_wfc,
                                                 UnitCell* p_ucell,
                                                 Parallel_Kpoints* p_parakpts,
@@ -159,7 +159,7 @@ void psi_initializer_nao<T, Device>::initialize(Structure_Factor* sf,
                                                 pseudopot_cell_vnl* p_pspot_nl,
                                                 const int& rank)
 {
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize_mpi");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize_mpi");
   
     // import
     this->sf_ = sf;
@@ -177,17 +177,17 @@ void psi_initializer_nao<T, Device>::initialize(Structure_Factor* sf,
     this->ixy2is_.clear();
     this->ixy2is_.resize(this->pw_wfc_->fftnxy);
     this->pw_wfc_->getfftixy2is(this->ixy2is_.data());
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize_mpi");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize_mpi");
 }
 #else
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::initialize(Structure_Factor* sf,
+void PsiInitializerNAO<T, Device>::initialize(Structure_Factor* sf,
                                                 ModulePW::PW_Basis_K* pw_wfc,
                                                 UnitCell* p_ucell,
                                                 const int& random_seed,
                                                 pseudopot_cell_vnl* p_pspot_nl)
 {
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize_serial");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize_serial");
   
     // import
     this->sf_ = sf;
@@ -204,14 +204,14 @@ void psi_initializer_nao<T, Device>::initialize(Structure_Factor* sf,
     this->ixy2is_.clear();
     this->ixy2is_.resize(this->pw_wfc_->fftnxy);
     this->pw_wfc_->getfftixy2is(this->ixy2is_.data());
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize_serial");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize_serial");
 }
 #endif
 
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::tabulate()
+void PsiInitializerNAO<T, Device>::tabulate()
 {
-    ModuleBase::timer::tick("psi_initializer_nao", "tabulate");
+    ModuleBase::timer::tick("PsiInitializerNAO", "tabulate");
 
     // a uniformed qgrid
     std::vector<double> qgrid(PARAM.globalv.nqx);
@@ -258,16 +258,16 @@ void psi_initializer_nao<T, Device>::tabulate()
             }
         }
     }
-    ModuleBase::timer::tick("psi_initializer_nao", "tabulate");
+    ModuleBase::timer::tick("PsiInitializerNAO", "tabulate");
 }
 
 template <typename T, typename Device>
-void psi_initializer_nao<T, Device>::proj_ao_onkG(const int ik)
+void PsiInitializerNAO<T, Device>::proj_ao_onkG(const int ik)
 {
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize");
     assert(ik >= 0);
-    const int ik_psig = (this->psig_->get_nk() == 1) ? 0 : ik;
-    this->psig_->fix_k(ik_psig);
+    const int ik_psig = (this->d_psig_->get_nk() == 1) ? 0 : ik;
+    this->d_psig_->fix_k(ik_psig);
     const int npw = this->pw_wfc_->npwk[ik];
     const int total_lm = (this->p_ucell_->lmax + 1) * (this->p_ucell_->lmax + 1);
     ModuleBase::matrix ylm(total_lm, npw);
@@ -348,17 +348,17 @@ void psi_initializer_nao<T, Device>::proj_ao_onkG(const int ik)
                                         fdown = ModuleBase::IMAG_UNIT * sin(0.5 * alpha) * aux[ig];
                                         // build the orthogonal wfc
                                         // first rotation with angle (alpha + ModuleBase::PI) around (OX)
-                                        (*(this->psig_))(ibasis, ig) = this->template cast_to_T<T>(
+                                        (*(this->d_psig_))(ibasis, ig) = this->template cast_to_T<T>(
                                             (cos(0.5 * gamma) + ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fup);
-                                        (*(this->psig_))(ibasis, ig + this->pw_wfc_->npwk_max)
+                                        (*(this->d_psig_))(ibasis, ig + this->pw_wfc_->npwk_max)
                                             = this->template cast_to_T<T>(
                                                 (cos(0.5 * gamma) - ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fdown);
                                         // second rotation with angle gamma around(OZ)
                                         fup = cos(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
                                         fdown = ModuleBase::IMAG_UNIT * sin(0.5 * (alpha + ModuleBase::PI)) * aux[ig];
-                                        (*(this->psig_))(ibasis + 2 * L + 1, ig) = this->template cast_to_T<T>(
+                                        (*(this->d_psig_))(ibasis + 2 * L + 1, ig) = this->template cast_to_T<T>(
                                             (cos(0.5 * gamma) + ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fup);
-                                        (*(this->psig_))(ibasis + 2 * L + 1, ig + this->pw_wfc_->npwk_max)
+                                        (*(this->d_psig_))(ibasis + 2 * L + 1, ig + this->pw_wfc_->npwk_max)
                                             = this->template cast_to_T<T>(
                                                 (cos(0.5 * gamma) - ModuleBase::IMAG_UNIT * sin(0.5 * gamma)) * fdown);
                                     }
@@ -377,7 +377,7 @@ void psi_initializer_nao<T, Device>::proj_ao_onkG(const int ik)
                             #pragma omp parallel for
                             for (int ig = 0; ig < npw; ig++)
                             {
-                                (*(this->psig_))(ibasis, ig)
+                                (*(this->d_psig_))(ibasis, ig)
                                     = this->template cast_to_T<T>(lphase * sk[ig] * ylm(lm, ig) * Jlfq[ig]);
                             }
                             ++ibasis;
@@ -392,20 +392,20 @@ void psi_initializer_nao<T, Device>::proj_ao_onkG(const int ik)
     /* complement the rest of bands if there are */
     if (this->nbands_complem() > 0)
     {
-        this->random_t(this->psig_->get_pointer(), ibasis, this->psig_->get_nbands(), ik);
+        this->random_t(this->d_psig_->get_pointer(), ibasis, this->d_psig_->get_nbands(), ik);
     }
-    ModuleBase::timer::tick("psi_initializer_nao", "initialize");
+    ModuleBase::timer::tick("PsiInitializerNAO", "initialize");
 }
 
-template class psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>;
-template class psi_initializer_nao<std::complex<float>, base_device::DEVICE_CPU>;
+template class PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>;
+template class PsiInitializerNAO<std::complex<float>, base_device::DEVICE_CPU>;
 // gamma point calculation
-template class psi_initializer_nao<double, base_device::DEVICE_CPU>;
-template class psi_initializer_nao<float, base_device::DEVICE_CPU>;
+template class PsiInitializerNAO<double, base_device::DEVICE_CPU>;
+template class PsiInitializerNAO<float, base_device::DEVICE_CPU>;
 #if ((defined __CUDA) || (defined __ROCM))
-template class psi_initializer_nao<std::complex<double>, base_device::DEVICE_GPU>;
-template class psi_initializer_nao<std::complex<float>, base_device::DEVICE_GPU>;
+template class PsiInitializerNAO<std::complex<double>, base_device::DEVICE_GPU>;
+template class PsiInitializerNAO<std::complex<float>, base_device::DEVICE_GPU>;
 // gamma point calculation
-template class psi_initializer_nao<double, base_device::DEVICE_GPU>;
-template class psi_initializer_nao<float, base_device::DEVICE_GPU>;
+template class PsiInitializerNAO<double, base_device::DEVICE_GPU>;
+template class PsiInitializerNAO<float, base_device::DEVICE_GPU>;
 #endif

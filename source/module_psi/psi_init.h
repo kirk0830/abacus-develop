@@ -41,7 +41,7 @@ class PSIInit
     // make interpolate table
     void make_table(const int nks, Structure_Factor* p_sf, pseudopot_cell_vnl* p_ppcell);
 
-    //------------------------ only for psi_initializer --------------------
+    //------------------------ only for PsiInitializer --------------------
     /**
      * @brief initialize the wavefunction
      *
@@ -58,27 +58,27 @@ class PSIInit
                         const bool is_already_initpsi);
 
     /**
-     * @brief get the psi_initializer
+     * @brief get the PsiInitializer
      *
-     * @return psi_initializer<T, Device>*
+     * @return PsiInitializer<T, Device>*
      */
-    std::weak_ptr<psi::Psi<T, Device>> get_psig() const
+    psi::Psi<T, Device>* get_psig() const
     {
         return this->psi_init->share_psig();
     }
     //----------------------------------------------------------------------
 
   private:
-    // psi_initializer<T, Device>* psi_init = nullptr;
+    // PsiInitializer<T, Device>* psi_init = nullptr;
     // change to use smart pointer to manage the memory, and avoid memory leak
     // while the std::make_unique() is not supported till C++14,
     // so use the new and std::unique_ptr to manage the memory, but this makes new-delete not symmetric
-    std::unique_ptr<psi_initializer<T, Device>> psi_init;
+    std::unique_ptr<PsiInitializer<T, Device>> psi_init;
 
     //! temporary: wave functions, this one may be deleted in future
     wavefunc wf_old;
 
-    // whether to use psi_initializer
+    // whether to usePsiInitializer
     bool use_psiinitializer = false;
 
     // wavefunction initialization type

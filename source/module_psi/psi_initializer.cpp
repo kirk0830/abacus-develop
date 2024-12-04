@@ -12,9 +12,9 @@
 #endif
 
 template<typename T, typename Device>
-psi::Psi<std::complex<double>>* psi_initializer<T, Device>::allocate(const bool only_psig)
+psi::Psi<std::complex<double>>* PsiInitializer<T, Device>::allocate(const bool only_psig)
 {
-    ModuleBase::timer::tick("psi_initializer", "allocate");
+    ModuleBase::timer::tick("PsiInitializer", "allocate");
     /*
         WARNING: when basis_type = "pw", the variable PARAM.globalv.nlocal will also be set, in this case, it is set to
         9 = 1 + 3 + 5, which is the maximal number of orbitals spd, I don't think it is reasonable
@@ -82,13 +82,17 @@ psi::Psi<std::complex<double>>* psi_initializer<T, Device>::allocate(const bool 
         // std::cout << " MEMORY FOR PSI PER PROCESSOR (MB)  : " << double(memory_cost_psi)/1024.0/1024.0 << std::endl;
         ModuleBase::Memory::record("Psi_PW", memory_cost_psi);
     }
-    // psi_initializer also works for basis transformation tasks. In this case, psig needs to allocate memory for 
+    // PsiInitializer also works for basis transformation tasks. In this case, psig needs to allocate memory for 
     // each kpoint, otherwise, for initializing pw wavefunction, only one kpoint's space is enough.
     const int nks_psig = (PARAM.inp.basis_type == "pw")? 1 : nks_psi;
-    this->psig_ = std::make_shared<psi::Psi<T, Device>>(nks_psig, 
-                                                        nbands_actual, 
-                                                        nbasis_actual, 
-                                                        this->pw_wfc_->npwk);
+    // this->psig_ = std::make_shared<psi::Psi<T, Device>>(nks_psig, 
+    //                                                     nbands_actual, 
+    //                                                     nbasis_actual, 
+    //                                                     this->pw_wfc_->npwk);
+    this->d_psig_ = new psi::Psi<T, Device>(nks_psig, 
+                                            nbands_actual, 
+                                            nbasis_actual, 
+                                            this->pw_wfc_->npwk);
 
     double memory_cost_psig = 
             nks_psig * nbands_actual * this->pw_wfc_->npwk_max * PARAM.globalv.npol * sizeof(T);
@@ -111,14 +115,14 @@ psi::Psi<std::complex<double>>* psi_initializer<T, Device>::allocate(const bool 
                          << "npwk_max = " << this->pw_wfc_->npwk_max << "\n"
                          << "npol = " << PARAM.globalv.npol << "\n";
     ModuleBase::Memory::record("psigPW", memory_cost_psig);
-    ModuleBase::timer::tick("psi_initializer", "allocate");
+    ModuleBase::timer::tick("PsiInitializer", "allocate");
     return psi_out;
 }
 
 template<typename T, typename Device>
-void psi_initializer<T, Device>::random_t(T* psi, const int iw_start, const int iw_end, const int ik)
+void PsiInitializer<T, Device>::random_t(T* psi, const int iw_start, const int iw_end, const int ik)
 {
-    ModuleBase::timer::tick("psi_initializer", "random_t");
+    ModuleBase::timer::tick("PsiInitializer", "random_t");
     assert(iw_start >= 0);
     const int ng = this->pw_wfc_->npwk[ik];
 
@@ -213,14 +217,14 @@ void psi_initializer<T, Device>::random_t(T* psi, const int iw_start, const int 
             }
         }
     }
-    ModuleBase::timer::tick("psi_initializer_random", "random_t");
+    ModuleBase::timer::tick("PsiInitializer", "random_t");
 }
 
 #ifdef __MPI
 template<typename T, typename Device>
-void psi_initializer<T, Device>::stick_to_pool(Real* stick, const int& ir, Real* out) const
+void PsiInitializer<T, Device>::stick_to_pool(Real* stick, const int& ir, Real* out) const
 {	
-    ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
+    ModuleBase::timer::tick("PsiInitializer", "stick_to_pool");
 	MPI_Status ierror;
     const int is = this->ixy2is_[ir];
 	const int ip = this->pw_wfc_->fftixy2ip[ir];
@@ -245,7 +249,7 @@ void psi_initializer<T, Device>::stick_to_pool(Real* stick, const int& ir, Real*
         }
         else
         {
-            ModuleBase::WARNING_QUIT("psi_initializer", "stick_to_pool: Real type not supported");
+            ModuleBase::WARNING_QUIT("PsiInitializer", "stick_to_pool: Real type not supported");
         }
 		for(int iz=0; iz<nz; iz++)
 		{
@@ -264,25 +268,25 @@ void psi_initializer<T, Device>::stick_to_pool(Real* stick, const int& ir, Real*
         }
         else
         {
-            ModuleBase::WARNING_QUIT("psi_initializer", "stick_to_pool: Real type not supported");
+            ModuleBase::WARNING_QUIT("PsiInitializer", "stick_to_pool: Real type not supported");
         }
 	}
 
 	return;	
-    ModuleBase::timer::tick("psi_initializer", "stick_to_pool");
+    ModuleBase::timer::tick("PsiInitializer", "stick_to_pool");
 }
 #endif
 
 // explicit instantiation
-template class psi_initializer<std::complex<double>, base_device::DEVICE_CPU>;
-template class psi_initializer<std::complex<float>, base_device::DEVICE_CPU>;
+template class PsiInitializer<std::complex<double>, base_device::DEVICE_CPU>;
+template class PsiInitializer<std::complex<float>, base_device::DEVICE_CPU>;
 // gamma point calculation
-template class psi_initializer<double, base_device::DEVICE_CPU>;
-template class psi_initializer<float, base_device::DEVICE_CPU>;
+template class PsiInitializer<double, base_device::DEVICE_CPU>;
+template class PsiInitializer<float, base_device::DEVICE_CPU>;
 #if ((defined __CUDA) || (defined __ROCM))
-template class psi_initializer<std::complex<double>, base_device::DEVICE_GPU>;
-template class psi_initializer<std::complex<float>, base_device::DEVICE_GPU>;
+template class PsiInitializer<std::complex<double>, base_device::DEVICE_GPU>;
+template class PsiInitializer<std::complex<float>, base_device::DEVICE_GPU>;
 // gamma point calculation
-template class psi_initializer<double, base_device::DEVICE_GPU>;
-template class psi_initializer<float, base_device::DEVICE_GPU>;
+template class PsiInitializer<double, base_device::DEVICE_GPU>;
+template class PsiInitializer<float, base_device::DEVICE_GPU>;
 #endif

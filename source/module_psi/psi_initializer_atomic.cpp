@@ -25,7 +25,7 @@ void normalize(int n_rgrid, std::vector<T>& pswfcr, double* rab)
 }
 
 template <typename T, typename Device>
-void psi_initializer_atomic<T, Device>::allocate_table()
+void PsiInitializerAtomic<T, Device>::allocate_table()
 {
    // find correct dimension for ovlp_flzjlq
     int dim1 = this->p_ucell_->ntype;
@@ -36,7 +36,7 @@ void psi_initializer_atomic<T, Device>::allocate_table()
     }
     if (dim2 == 0)
     {
-        ModuleBase::WARNING_QUIT("psi_initializer_atomic<T, Device>::allocate_table", "there is not ANY pseudo atomic orbital read in present system, recommand other methods, quit.");
+        ModuleBase::WARNING_QUIT("PsiInitializerAtomic<T, Device>::allocate_table", "there is not ANY pseudo atomic orbital read in present system, recommand other methods, quit.");
     }
     int dim3 = PARAM.globalv.nqx;
     // allocate memory for ovlp_flzjlq
@@ -46,7 +46,7 @@ void psi_initializer_atomic<T, Device>::allocate_table()
 
 #ifdef __MPI
 template <typename T, typename Device>
-void psi_initializer_atomic<T, Device>::initialize(Structure_Factor* sf,                                //< structure factor
+void PsiInitializerAtomic<T, Device>::initialize(Structure_Factor* sf,                                //< structure factor
                                                    ModulePW::PW_Basis_K* pw_wfc,                        //< planewave basis
                                                    UnitCell* p_ucell,                                   //< unit cell
                                                    Parallel_Kpoints* p_parakpts,                        //< parallel kpoints
@@ -54,10 +54,10 @@ void psi_initializer_atomic<T, Device>::initialize(Structure_Factor* sf,        
                                                    pseudopot_cell_vnl* p_pspot_nl,
                                                    const int& rank)
 {
-    ModuleBase::timer::tick("psi_initializer_atomic", "initialize");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "initialize");
     if(p_pspot_nl == nullptr)
     {
-        ModuleBase::WARNING_QUIT("psi_initializer_atomic<T, Device>::initialize", 
+        ModuleBase::WARNING_QUIT("PsiInitializerAtomic<T, Device>::initialize", 
                                  "pseudopot_cell_vnl object cannot be nullptr for atomic, quit.");
     }
     // import
@@ -73,20 +73,20 @@ void psi_initializer_atomic<T, Device>::initialize(Structure_Factor* sf,        
     this->ixy2is_.clear();
     this->ixy2is_.resize(this->pw_wfc_->fftnxy);
     this->pw_wfc_->getfftixy2is(this->ixy2is_.data());
-    ModuleBase::timer::tick("psi_initializer_atomic", "initialize_only_once");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "initialize_only_once");
 }
 #else
 template <typename T, typename Device>
-void psi_initializer_atomic<T, Device>::initialize(Structure_Factor* sf,                                //< structure factor
+void PsiInitializerAtomic<T, Device>::initialize(Structure_Factor* sf,                                //< structure factor
                                                    ModulePW::PW_Basis_K* pw_wfc,                        //< planewave basis
                                                    UnitCell* p_ucell,                                   //< unit cell
                                                    const int& random_seed,                          //< random seed
                                                    pseudopot_cell_vnl* p_pspot_nl)
 {
-    ModuleBase::timer::tick("psi_initializer_atomic", "initialize");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "initialize");
     if(p_pspot_nl == nullptr)
     {
-        ModuleBase::WARNING_QUIT("psi_initializer_atomic<T, Device>::initialize", 
+        ModuleBase::WARNING_QUIT("PsiInitializerAtomic<T, Device>::initialize", 
                                  "pseudopot_cell_vnl object cannot be nullptr for atomic, quit.");
     }
     // import
@@ -101,14 +101,14 @@ void psi_initializer_atomic<T, Device>::initialize(Structure_Factor* sf,        
     this->ixy2is_.clear();
     this->ixy2is_.resize(this->pw_wfc_->fftnxy);
     this->pw_wfc_->getfftixy2is(this->ixy2is_.data());
-    ModuleBase::timer::tick("psi_initializer_atomic", "initialize_only_once");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "initialize_only_once");
 }
 #endif
 
 template <typename T, typename Device>
-void psi_initializer_atomic<T, Device>::tabulate()
+void PsiInitializerAtomic<T, Device>::tabulate()
 {
-    ModuleBase::timer::tick("psi_initializer_atomic", "cal_ovlp_pswfcjlq");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "cal_ovlp_pswfcjlq");
     int maxn_rgrid = 0;
     std::vector<double> qgrid(PARAM.globalv.nqx);
     for (int iq = 0; iq < PARAM.globalv.nqx; iq++)
@@ -150,7 +150,7 @@ void psi_initializer_atomic<T, Device>::tabulate()
             }
         }
     }
-    ModuleBase::timer::tick("psi_initializer_atomic", "cal_ovlp_pswfcjlq");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "cal_ovlp_pswfcjlq");
 }
 
 std::complex<double> phase_factor(double arg, int mode)
@@ -162,9 +162,9 @@ std::complex<double> phase_factor(double arg, int mode)
 }
 
 template <typename T, typename Device>
-void psi_initializer_atomic<T, Device>::proj_ao_onkG(const int ik)
+void PsiInitializerAtomic<T, Device>::proj_ao_onkG(const int ik)
 {
-    ModuleBase::timer::tick("psi_initializer_atomic", "proj_ao_onkG");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "proj_ao_onkG");
     const int ik_psig = (this->psig_->get_nk() == 1) ? 0 : ik;
     this->psig_->fix_k(ik_psig);
     //this->print_status(psi);
@@ -300,6 +300,7 @@ void psi_initializer_atomic<T, Device>::proj_ao_onkG(const int ik)
                                             break;
                                         }
                                     }
+                                    #pragma omp parallel for
                                     for(int ig=0;ig<npw;ig++)
                                     {
             /* average <pswfc_a|jl(q)> and <pswfc_b(j=l-1/2)|jl(q)>, a and b seem not necessarily to be equal */
@@ -324,7 +325,7 @@ void psi_initializer_atomic<T, Device>::proj_ao_onkG(const int ik)
                                     if(index+2*l+1 > this->p_ucell_->natomwfc)
                                     {
                                         std::cout<<__FILE__<<__LINE__<<" "<<index<<" "<<this->p_ucell_->natomwfc<<std::endl;
-                                        //ModuleBase::WARNING_QUIT("psi_initializer_atomic<T, Device>::proj_ao_onkG()","error: too many wfcs");
+                                        //ModuleBase::WARNING_QUIT("PsiInitializerAtomic<T, Device>::proj_ao_onkG()","error: too many wfcs");
                                     }
                                     for(int ig = 0;ig<npw;ig++)
                                     {
@@ -370,7 +371,7 @@ void psi_initializer_atomic<T, Device>::proj_ao_onkG(const int ik)
                                 if(index+2*l+1 > this->p_ucell_->natomwfc)
                                 {
                                     std::cout<<__FILE__<<__LINE__<<" "<<index<<" "<<this->p_ucell_->natomwfc<<std::endl;
-                                    //ModuleBase::WARNING_QUIT("psi_initializer_atomic<T, Device>::proj_ao_onkG()","error: too many wfcs");
+                                    //ModuleBase::WARNING_QUIT("PsiInitializerAtomic<T, Device>::proj_ao_onkG()","error: too many wfcs");
                                 }
                                 for(int ig = 0;ig<npw;ig++)
                                 {
@@ -434,18 +435,18 @@ void psi_initializer_atomic<T, Device>::proj_ao_onkG(const int ik)
 	{
 		this->random_t(this->psig_->get_pointer(), index, this->psig_->get_nbands(), ik);
 	}
-    ModuleBase::timer::tick("psi_initializer_atomic", "proj_ao_onkG");
+    ModuleBase::timer::tick("PsiInitializerAtomic", "proj_ao_onkG");
 }
 
-template class psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>;
-template class psi_initializer_atomic<std::complex<float>, base_device::DEVICE_CPU>;
+template class PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>;
+template class PsiInitializerAtomic<std::complex<float>, base_device::DEVICE_CPU>;
 // gamma point calculation
-template class psi_initializer_atomic<double, base_device::DEVICE_CPU>;
-template class psi_initializer_atomic<float, base_device::DEVICE_CPU>;
+template class PsiInitializerAtomic<double, base_device::DEVICE_CPU>;
+template class PsiInitializerAtomic<float, base_device::DEVICE_CPU>;
 #if ((defined __CUDA) || (defined __ROCM))
-template class psi_initializer_atomic<std::complex<double>, base_device::DEVICE_GPU>;
-template class psi_initializer_atomic<std::complex<float>, base_device::DEVICE_GPU>;
+template class PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_GPU>;
+template class PsiInitializerAtomic<std::complex<float>, base_device::DEVICE_GPU>;
 // gamma point calculation
-template class psi_initializer_atomic<double, base_device::DEVICE_GPU>;
-template class psi_initializer_atomic<float, base_device::DEVICE_GPU>;
+template class PsiInitializerAtomic<double, base_device::DEVICE_GPU>;
+template class PsiInitializerAtomic<float, base_device::DEVICE_GPU>;
 #endif

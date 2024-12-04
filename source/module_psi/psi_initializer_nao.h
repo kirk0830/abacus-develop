@@ -8,18 +8,18 @@
 Psi (planewave based wavefunction) initializer: numerical atomic orbital method
 */
 template <typename T, typename Device>
-class psi_initializer_nao : public psi_initializer<T, Device>
+class PsiInitializerNAO : public PsiInitializer<T, Device>
 {
     private:
         using Real = typename GetTypeReal<T>::type;
     public:
-        psi_initializer_nao() {this->set_method("nao");};
-        ~psi_initializer_nao() {};
+        PsiInitializerNAO() {this->set_method("nao");};
+        ~PsiInitializerNAO() {};
 
         virtual void proj_ao_onkG(const int ik) override;
 
         #ifdef __MPI // MPI additional implementation
-        /// @brief initialize the psi_initializer with external data and methods
+        /// @brief initialize the PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,                      //< structure factor
                                 ModulePW::PW_Basis_K*,                  //< planewave basis
                                 UnitCell*,                              //< unit cell
@@ -28,7 +28,7 @@ class psi_initializer_nao : public psi_initializer<T, Device>
                                 pseudopot_cell_vnl* = nullptr,          //< nonlocal pseudopotential
                                 const int& = 0) override;               //< MPI rank
         #else
-        /// @brief serial version of initialize function, link psi_initializer with external data and methods
+        /// @brief serial version of initialize function, link PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,                      //< structure factor
                                 ModulePW::PW_Basis_K*,                  //< planewave basis
                                 UnitCell*,                              //< unit cell

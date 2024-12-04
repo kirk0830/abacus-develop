@@ -8,13 +8,13 @@
 Psi (planewave based wavefunction) initializer: random method
 */
 template <typename T, typename Device>
-class psi_initializer_random : public psi_initializer<T, Device>
+class PsiInitializerRandom : public PsiInitializer<T, Device>
 {
     private:
         using Real = typename GetTypeReal<T>::type;
     public:
-        psi_initializer_random() {this->set_method("random");};
-        ~psi_initializer_random() {};
+        PsiInitializerRandom() {this->set_method("random");};
+        ~PsiInitializerRandom() {};
         /// @brief write random number to psi in certain range specified by ik, iw_start, iw_end
         void random(T* psi,                 //< psi
                     const int iw_start,     //< iw_start, starting band index of present kpoint
@@ -25,7 +25,7 @@ class psi_initializer_random : public psi_initializer<T, Device>
         /// @return initialized planewave wavefunction (psi::Psi<std::complex<double>>*)
         virtual void proj_ao_onkG(const int ik) override;
         #ifdef __MPI // MPI additional implementation
-        /// @brief initialize the psi_initializer with external data and methods
+        /// @brief initialize the PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,              //< structure factor
                                 ModulePW::PW_Basis_K*,          //< planewave basis
                                 UnitCell*,                      //< unit cell
@@ -34,7 +34,7 @@ class psi_initializer_random : public psi_initializer<T, Device>
                                 pseudopot_cell_vnl* = nullptr,  //< nonlocal pseudopotential
                                 const int& = 0) override;       //< MPI rank
         #else
-        /// @brief serial version of initialize function, link psi_initializer with external data and methods
+        /// @brief serial version of initialize function, link PsiInitializer with external data and methods
         virtual void initialize(Structure_Factor*,                          //< structure factor
                                 ModulePW::PW_Basis_K*,                      //< planewave basis
                                 UnitCell*,                                  //< unit cell

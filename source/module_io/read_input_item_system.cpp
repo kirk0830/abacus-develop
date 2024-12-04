@@ -502,7 +502,7 @@ void ReadInput::item_system()
     }
     {
         Input_Item item("psi_initializer");
-        item.annotation = "whether to use psi_initializer";
+        item.annotation = "whether to use PsiInitializer";
         item.reset_value = [](const Input_Item& item, Parameter& para) {
             if (para.input.basis_type == "lcao_in_pw")
             {

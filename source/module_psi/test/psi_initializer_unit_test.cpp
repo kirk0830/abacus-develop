@@ -15,8 +15,8 @@
 psi initializer unit test
 =========================
 - Tested functions:
-    - psi_initializer_random::psi_initializer_random
-      - constructor of psi_initializer_random
+    - PsiInitializerRandom::psi_initializer_random
+      - constructor of PsiInitializerRandom
     - psi_initializer_atomic::psi_initializer_atomic
       - constructor of psi_initializer_atomic
     - psi_initializer_atomic_random::psi_initializer_atomic_random
@@ -27,7 +27,7 @@ psi initializer unit test
       - constructor of psi_initializer_nao_random
     - psi_initializer::cast_to_T (psi_initializer specialized as random)
       - function cast std::complex<double> to float, double, std::complex<float>, std::complex<double>
-    - psi_initializer_random::allocate
+    - PsiInitializerRandom::allocate
       - allocate wavefunctions with random-specific method
     - psi_initializer_atomic::allocate
       - allocate wavefunctions with atomic-specific method
@@ -37,7 +37,7 @@ psi initializer unit test
       - allocate wavefunctions with nao-specific method
     - psi_initializer_nao_random::allocate
       - allocate wavefunctions with nao-specific method
-    - psi_initializer_random::proj_ao_onkG
+    - PsiInitializerRandom::proj_ao_onkG
       - calculate wavefunction initial guess (before diagonalization) by randomly generating numbers
     - psi_initializer_atomic::proj_ao_onkG
       - calculate wavefunction initial guess (before diagonalization) with atomic pseudo wavefunctions
@@ -100,7 +100,7 @@ class PsiIntializerUnitTest : public ::testing::Test {
         #endif
         int random_seed = 1;
 
-        psi_initializer<std::complex<double>, base_device::DEVICE_CPU>* psi_init;
+        PsiInitializer<std::complex<double>, base_device::DEVICE_CPU>* psi_init;
 
       private:
       protected:
@@ -278,32 +278,32 @@ class PsiIntializerUnitTest : public ::testing::Test {
 };
 
 TEST_F(PsiIntializerUnitTest, ConstructorRandom) {
-    this->psi_init = new psi_initializer_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAORandom<std::complex<double>, base_device::DEVICE_CPU>();
     EXPECT_EQ("random", this->psi_init->method());
 }
 
 TEST_F(PsiIntializerUnitTest, ConstructorAtomic) {
-    this->psi_init = new psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>();
     EXPECT_EQ("atomic", this->psi_init->method());
 }
 
 TEST_F(PsiIntializerUnitTest, ConstructorAtomicRandom) {
-    this->psi_init = new psi_initializer_atomic_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomicRandom<std::complex<double>, base_device::DEVICE_CPU>();
     EXPECT_EQ("atomic+random", this->psi_init->method());
 }
 
 TEST_F(PsiIntializerUnitTest, ConstructorNao) {
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
     EXPECT_EQ("nao", this->psi_init->method());
 }
 
 TEST_F(PsiIntializerUnitTest, ConstructorNaoRandom) {
-    this->psi_init = new psi_initializer_nao_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAORandom<std::complex<double>, base_device::DEVICE_CPU>();
     EXPECT_EQ("nao+random", this->psi_init->method());
 }
 
 TEST_F(PsiIntializerUnitTest, CastToT) {
-    this->psi_init = new psi_initializer_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerRandom<std::complex<double>, base_device::DEVICE_CPU>();
     std::complex<double> cd = {1.0, 2.0};
     std::complex<float> cf = {1.0, 2.0};
     double d = 1.0;
@@ -316,7 +316,7 @@ TEST_F(PsiIntializerUnitTest, CastToT) {
 
 TEST_F(PsiIntializerUnitTest, AllocateRandom) {
     PARAM.input.init_wfc = "random";
-    this->psi_init = new psi_initializer_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerRandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -338,7 +338,8 @@ TEST_F(PsiIntializerUnitTest, AllocateRandom) {
     EXPECT_EQ(1, psi->get_nk());
     EXPECT_EQ(1, psi->get_nbands());
     EXPECT_EQ(1, psi->get_nbasis());
-    auto psig = this->psi_init->share_psig().lock();
+    // auto psig = this->psi_init->share_psig().lock();
+    auto psig = this->psi_init->share_psig();
     EXPECT_EQ(1, psig->get_nk());
     EXPECT_EQ(1, psig->get_nbands());
     EXPECT_EQ(1, psig->get_nbasis());
@@ -347,7 +348,7 @@ TEST_F(PsiIntializerUnitTest, AllocateRandom) {
 
 TEST_F(PsiIntializerUnitTest, AllocateAtomic) {
     PARAM.input.init_wfc = "atomic";
-    this->psi_init = new psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -369,7 +370,8 @@ TEST_F(PsiIntializerUnitTest, AllocateAtomic) {
     EXPECT_EQ(1, psi->get_nk());
     EXPECT_EQ(1, psi->get_nbands());
     EXPECT_EQ(1, psi->get_nbasis());
-    auto psig = this->psi_init->share_psig().lock();
+    // auto psig = this->psi_init->share_psig().lock();
+    auto psig = this->psi_init->share_psig();
     EXPECT_EQ(1, psig->get_nk());
     EXPECT_EQ(4, psig->get_nbands());
     EXPECT_EQ(1, psig->get_nbasis());
@@ -378,7 +380,7 @@ TEST_F(PsiIntializerUnitTest, AllocateAtomic) {
 
 TEST_F(PsiIntializerUnitTest, AllocateAtomicRandom) {
     PARAM.input.init_wfc = "atomic+random";
-    this->psi_init = new psi_initializer_atomic_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomicRandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -400,7 +402,8 @@ TEST_F(PsiIntializerUnitTest, AllocateAtomicRandom) {
     EXPECT_EQ(1, psi->get_nk());
     EXPECT_EQ(1, psi->get_nbands());
     EXPECT_EQ(1, psi->get_nbasis());
-    auto psig = this->psi_init->share_psig().lock();
+    // auto psig = this->psi_init->share_psig().lock();
+    auto psig = this->psi_init->share_psig();
     EXPECT_EQ(1, psig->get_nk());
     EXPECT_EQ(4, psig->get_nbands());
     EXPECT_EQ(1, psig->get_nbasis());
@@ -409,7 +412,7 @@ TEST_F(PsiIntializerUnitTest, AllocateAtomicRandom) {
 
 TEST_F(PsiIntializerUnitTest, AllocateNao) {
     PARAM.input.init_wfc = "nao";
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -431,7 +434,8 @@ TEST_F(PsiIntializerUnitTest, AllocateNao) {
     EXPECT_EQ(1, psi->get_nk());
     EXPECT_EQ(1, psi->get_nbands());
     EXPECT_EQ(1, psi->get_nbasis());
-    auto psig = this->psi_init->share_psig().lock();
+    // auto psig = this->psi_init->share_psig().lock();
+    auto psig = this->psi_init->share_psig();
     EXPECT_EQ(1, psig->get_nk());
     EXPECT_EQ(13, psig->get_nbands());
     EXPECT_EQ(1, psig->get_nbasis());
@@ -440,7 +444,7 @@ TEST_F(PsiIntializerUnitTest, AllocateNao) {
 
 TEST_F(PsiIntializerUnitTest, AllocateNaoRandom) {
     PARAM.input.init_wfc = "nao+random";
-    this->psi_init = new psi_initializer_nao_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAORandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -462,7 +466,8 @@ TEST_F(PsiIntializerUnitTest, AllocateNaoRandom) {
     EXPECT_EQ(1, psi->get_nk());
     EXPECT_EQ(1, psi->get_nbands());
     EXPECT_EQ(1, psi->get_nbasis());
-    auto psig = this->psi_init->share_psig().lock();
+    // auto psig = this->psi_init->share_psig().lock();
+    auto psig = this->psi_init->share_psig();
     EXPECT_EQ(1, psig->get_nk());
     EXPECT_EQ(13, psig->get_nbands());
     EXPECT_EQ(1, psig->get_nbasis());
@@ -471,7 +476,7 @@ TEST_F(PsiIntializerUnitTest, AllocateNaoRandom) {
 
 TEST_F(PsiIntializerUnitTest, CalPsigRandom) {
     PARAM.input.init_wfc = "random";
-    this->psi_init = new psi_initializer_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerRandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -496,7 +501,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigRandom) {
 
 TEST_F(PsiIntializerUnitTest, CalPsigAtomic) {
     PARAM.input.init_wfc = "atomic";
-    this->psi_init = new psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -525,7 +530,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigAtomicSoc) {
     PARAM.sys.npol = 2;
     this->p_ucell->atoms[0].ncpp.has_so = false;
     this->p_ucell->natomwfc *= 2;
-    this->psi_init = new psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -558,7 +563,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigAtomicSocHasSo) {
     PARAM.sys.npol = 2;
     this->p_ucell->atoms[0].ncpp.has_so = true;
     this->p_ucell->natomwfc *= 2;
-    this->psi_init = new psi_initializer_atomic<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomic<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -587,7 +592,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigAtomicSocHasSo) {
 
 TEST_F(PsiIntializerUnitTest, CalPsigAtomicRandom) {
     PARAM.input.init_wfc = "atomic+random";
-    this->psi_init = new psi_initializer_atomic_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerAtomicRandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -612,7 +617,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigAtomicRandom) {
 
 TEST_F(PsiIntializerUnitTest, CalPsigNao) {
     PARAM.input.init_wfc = "nao";
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -637,7 +642,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigNao) {
 
 TEST_F(PsiIntializerUnitTest, CalPsigNaoRandom) {
     PARAM.input.init_wfc = "nao+random";
-    this->psi_init = new psi_initializer_nao_random<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAORandom<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -667,7 +672,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigNaoSoc) {
     this->p_ucell->atoms[0].ncpp.has_so = false;
     PARAM.sys.domag = false;
     PARAM.sys.domag_z = false;
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -697,7 +702,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigNaoSocHasSo) {
     this->p_ucell->atoms[0].ncpp.has_so = true;
     PARAM.sys.domag = false;
     PARAM.sys.domag_z = false;
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 
@@ -727,7 +732,7 @@ TEST_F(PsiIntializerUnitTest, CalPsigNaoSocHasSoDOMAG) {
     this->p_ucell->atoms[0].ncpp.has_so = true;
     PARAM.sys.domag = true;
     PARAM.sys.domag_z = false;
-    this->psi_init = new psi_initializer_nao<std::complex<double>, base_device::DEVICE_CPU>();
+    this->psi_init = new PsiInitializerNAO<std::complex<double>, base_device::DEVICE_CPU>();
 #ifdef __MPI
     this->psi_init->initialize(this->p_sf, 
                                this->p_pw_wfc, 

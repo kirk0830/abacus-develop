@@ -5,11 +5,11 @@
 #include "module_base/tool_quit.h"
 #include "module_hsolver/diago_iter_assist.h"
 #include "module_parameter/parameter.h"
+#include "module_psi/psi_initializer_random.h"
 #include "module_psi/psi_initializer_atomic.h"
 #include "module_psi/psi_initializer_atomic_random.h"
 #include "module_psi/psi_initializer_nao.h"
 #include "module_psi/psi_initializer_nao_random.h"
-#include "module_psi/psi_initializer_random.h"
 namespace psi
 {
 
@@ -46,27 +46,27 @@ void PSIInit<T, Device>::prepare_init(Structure_Factor* p_sf,
     ModuleBase::timer::tick("PSIInit", "prepare_init");
     if ((this->init_wfc.substr(0, 6) == "atomic") && (p_ucell->natomwfc == 0))
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_random<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerRandom<T, Device>());
     }
     else if (this->init_wfc == "atomic")
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_atomic<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerAtomic<T, Device>());
     }
     else if (this->init_wfc == "random")
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_random<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerRandom<T, Device>());
     }
     else if (this->init_wfc == "nao")
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_nao<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerNAO<T, Device>());
     }
     else if (this->init_wfc == "atomic+random")
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_atomic_random<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerAtomicRandom<T, Device>());
     }
     else if (this->init_wfc == "nao+random")
     {
-        this->psi_init = std::unique_ptr<psi_initializer<T, Device>>(new psi_initializer_nao_random<T, Device>());
+        this->psi_init = std::unique_ptr<PsiInitializer<T, Device>>(new PsiInitializerNAORandom<T, Device>());
     }
     else
     {
@@ -110,7 +110,7 @@ void PSIInit<T, Device>::allocate_psi(Psi<std::complex<double>>*& psi,
     // is not ready yet.
     if (this->use_psiinitializer) // new method
     {
-        // psi_initializer drag initialization of pw wavefunction out of HSolver, make psi
+        // PsiInitializer drag initialization of pw wavefunction out of HSolver, make psi
         // initialization decoupled with HSolver (diagonalization) procedure.
         // However, due to EXX is hard to maintain, we still use the old method for EXX.
         // LCAOINPW in version >= 3.5.0 uses this new method.
@@ -147,9 +147,10 @@ void PSIInit<T, Device>::make_table(const int nks, Structure_Factor* p_sf, pseud
     }
 }
 
+// in the following function, the psi on Device will be initialized with the CPU psi
 template <typename T, typename Device>
-void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
-                                        psi::Psi<T, Device>* kspw_psi,
+void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,      // the one always on CPU
+                                        psi::Psi<T, Device>* kspw_psi,       // the one may be on GPU. In CPU case, it is the same as psi
                                         hamilt::Hamilt<T, Device>* p_hamilt,
                                         const pseudopot_cell_vnl& nlpp,
                                         std::ofstream& ofs_running,
@@ -169,7 +170,8 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
         // like (1, nbands, npwx), in which npwx is the maximal npw of all kpoints
         for (int ik = 0; ik < this->pw_wfc->nks; ik++)
         {
-            //! Fix the wavefunction to initialize at given kpoint
+            //! Fix the wavefunction to initialize at given kpoint. 
+            // This will fix the kpoint for CPU case. For GPU, we should additionally call fix_k for kspw_psi
             psi->fix_k(ik);
 
             //! Update Hamiltonian from other kpoint to the given one
@@ -179,20 +181,20 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
             //! and G is wavevector of the peroiodic part of the Bloch function
             this->psi_init->proj_ao_onkG(ik);
 
-            //! psi_initializer manages memory of psig with shared pointer,
+            //! PsiInitializer manages memory of psig with shared pointer,
             //! its access to use is shared here via weak pointer
-            //! therefore once the psi_initializer is destructed, psig will be destructed, too
+            //! therefore once the PsiInitializer is destructed, psig will be destructed, too
             //! this way, we can avoid memory leak and undefined behavior
-            std::weak_ptr<psi::Psi<T, Device>> psig = this->psi_init->share_psig();
-
-            if (psig.expired())
+            // std::weak_ptr<psi::Psi<T, Device>> psig = this->psi_init->share_psig();
+            psi::Psi<T, Device>* psig_ = this->psi_init->share_psig();
+            if (/*psig.expired()*/ psig_ == nullptr)
             {
                 ModuleBase::WARNING_QUIT("PSIInit::initialize_psi", "psig lifetime is expired");
             }
 
             //! to use psig, we need to lock it to get a shared pointer version,
             //! then switch kpoint of psig to the given one
-            auto psig_ = psig.lock();
+            // auto psig_ = psig.lock();
             // CHANGE LOG: if not lcaoinpw, the psig will only be used in psi-initialization
             // so we can only allocate memory for one kpoint with the maximal number of pw
             // over all kpoints, then the memory space will be always enough. Then for each
@@ -210,6 +212,7 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
                 if (((this->ks_solver == "cg") || (this->ks_solver == "lapack")) && (this->basis_type == "pw"))
                 {
                     // the following function is only run serially, to be improved
+                    // For GPU: this psig_ should be on GPU before calling the following function
                     hsolver::DiagoIterAssist<T, Device>::diagH_subspace_init(p_hamilt,
                                                                              psig_->get_pointer(),
                                                                              psig_->get_nbands(),
@@ -218,6 +221,7 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
                                                                              etatom.data());
                     continue;
                 }
+                // do nothing in LCAO_IN_PW case because psig is used to do transformation instead of initialization
                 else if ((this->ks_solver == "lapack") && (this->basis_type == "lcao_in_pw"))
                 {
                     if (ik == 0)
@@ -239,6 +243,7 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
             }
 
             // for the Davidson method, we just copy the wavefunction (partially)
+            // For GPU: although this is simply the copy operation, if GPU present, this should be a data sending operation
             for (int iband = 0; iband < kspw_psi->get_nbands(); iband++)
             {
                 for (int ibasis = 0; ibasis < kspw_psi->get_nbasis(); ibasis++)
@@ -248,7 +253,7 @@ void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi,
             }
         } // end k-point loop
 
-        if (this->basis_type != "lcao_in_pw")
+        if (this->basis_type != "lcao_in_pw") // if not LCAO_IN_PW case, we can release the memory of psig after initailization is done.
         {
             this->psi_init->deallocate_psig();
         }
