@@ -216,7 +216,7 @@ void Exx_Lip<T, Device>::phi_cal(k_package* kq_pack, const int ikq)
     for (int iw = 0; iw < PARAM.globalv.nlocal; ++iw)
     {
         // this->wfc_basis->recip2real(&kq_pack->wf_ptr->wanf2[ikq](iw,0), porter.data(), ikq);
-        this->wfc_basis->recip2real(&(kq_pack->wf_ptr->get_psig().lock()->operator()(ikq, iw, 0)), porter.data(), ikq);
+        this->wfc_basis->recip2real(&(kq_pack->wf_ptr->get_psig()->operator()(ikq, iw, 0)), porter.data(), ikq);
         int ir = 0;
         for (int ix = 0; ix < this->rho_basis->nx; ++ix)
         {
