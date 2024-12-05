@@ -94,6 +94,8 @@ class PSIInit
     ModulePW::PW_Basis_K* pw_wfc = nullptr;
 
     Device* ctx = {};
+
+    std::string init_psi_method = "old";
 };
 
 } // namespace psi
