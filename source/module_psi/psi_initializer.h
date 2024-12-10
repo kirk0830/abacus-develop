@@ -207,5 +207,8 @@ class PsiInitializer
         std::string method_ = "none";
         int nbands_complem_ = 0;
         double random_mix_ = 0;
+
+        void _random_t_serial_impl(T* psi, const int iw_start, const int iw_end, const int ik);
+        void _random_t_pal_impl(T* psi, const int iw_start, const int iw_end, const int ik);
 };
 #endif

@@ -129,7 +129,56 @@ psi::Psi<std::complex<double>>* PsiInitializer<T, Device>::allocate(const bool o
 }
 
 template<typename T, typename Device>
-void PsiInitializer<T, Device>::random_t(T* psi, const int iw_start, const int iw_end, const int ik)
+void PsiInitializer<T, Device>::_random_t_serial_impl(T* psi,
+                                                      const int iw_start,
+                                                      const int iw_end,
+                                                      const int ik)
+{
+    assert(iw_start >= 0);
+    const int ng = this->pw_wfc_->npwk[ik];
+    if (PARAM.inp.pw_seed > 0) // qianrui add 2021-8-13
+    {
+        srand(unsigned(PARAM.inp.pw_seed + ik));
+    }
+    for (int iw = iw_start; iw < iw_end; iw++)
+    {
+        T* psi_slice = &(psi[iw * this->pw_wfc_->npwk_max * PARAM.globalv.npol]);
+        for (int ig = 0; ig < ng; ig++)
+        {
+            const double rr = std::rand() / double(RAND_MAX); // qianrui add RAND_MAX
+            const double arg = ModuleBase::TWO_PI * std::rand() / double(RAND_MAX);
+            const double gk2 = this->pw_wfc_->getgk2(ik, ig);
+            psi_slice[ig] = this->template cast_to_T<T>(
+                std::complex<double>(rr*cos(arg)/(gk2 + 1.0), rr*sin(arg)/(gk2 + 1.0)));
+        }
+        if (PARAM.globalv.npol == 2) // if npol = 2, then fill the second polarization
+        {
+            for (int ig = this->pw_wfc_->npwk_max; ig < this->pw_wfc_->npwk_max + ng; ig++)
+            {
+                const double rr = std::rand() / double(RAND_MAX);
+                const double arg = ModuleBase::TWO_PI * std::rand() / double(RAND_MAX);
+                const double gk2 = this->pw_wfc_->getgk2(ik, ig - this->pw_wfc_->npwk_max);
+                psi_slice[ig] = this->template cast_to_T<T>(
+                    std::complex<double>(rr*cos(arg)/(gk2 + 1.0), rr*sin(arg)/(gk2 + 1.0)));
+            }
+        }
+    }
+}
+
+template<typename T, typename Device>
+void PsiInitializer<T, Device>::_random_t_pal_impl(T* psi, 
+                                                   const int iw_start, 
+                                                   const int iw_end, 
+                                                   const int ik)
+{
+
+}
+
+template<typename T, typename Device>
+void PsiInitializer<T, Device>::random_t(T* psi, 
+                                         const int iw_start, 
+                                         const int iw_end, 
+                                         const int ik)
 {
     ModuleBase::timer::tick("PsiInitializer", "random_t");
     assert(iw_start >= 0);

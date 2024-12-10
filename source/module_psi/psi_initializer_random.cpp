@@ -10,12 +10,12 @@
 #ifdef __MPI
 template <typename T, typename Device>
 void PsiInitializerRandom<T, Device>::initialize(Structure_Factor* sf,
-                                                   ModulePW::PW_Basis_K* pw_wfc,
-                                                   UnitCell* p_ucell,
-                                                   Parallel_Kpoints* p_parakpts,
-                                                   const int& random_seed,
-                                                   pseudopot_cell_vnl* p_pspot_nl,
-                                                   const int& rank)
+                                                 ModulePW::PW_Basis_K* pw_wfc,
+                                                 UnitCell* p_ucell,
+                                                 Parallel_Kpoints* p_parakpts,
+                                                 const int& random_seed,
+                                                 pseudopot_cell_vnl* p_pspot_nl,
+                                                 const int& rank)
 {
     this->pw_wfc_ = pw_wfc;
     this->p_ucell_ = p_ucell;
