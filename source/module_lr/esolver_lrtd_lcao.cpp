@@ -226,10 +226,10 @@ LR::ESolver_LR<T, TR>::ESolver_LR(ModuleESolver::ESolver_KS_LCAO<T, TR>&& ks_sol
         {
             // set ccp_type according to the xc_kernel
             if (xc_kernel == "hf") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Hf; }
-            else if (xc_kernel == "hse") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Hse; }
+            else if (xc_kernel == "hse") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Erfc; }
             this->exx_lri = std::make_shared<Exx_LRI<T>>(exx_info.info_ri);
-            this->exx_lri->init(MPI_COMM_WORLD, this->kv, ks_sol.orb_);
-            this->exx_lri->cal_exx_ions(input.out_ri_cv);
+            this->exx_lri->init(MPI_COMM_WORLD, ucell,this->kv, ks_sol.orb_);
+            this->exx_lri->cal_exx_ions(ucell,input.out_ri_cv);
         }
     }
 #endif
@@ -255,7 +255,7 @@ LR::ESolver_LR<T, TR>::ESolver_LR(const Input_para& inp, UnitCell& ucell) : inpu
     // necessary steps in ESolver_KS::before_all_runners : symmetry and k-points
     if (ModuleSymmetry::Symmetry::symm_flag == 1)
     {
-        GlobalC::ucell.symm.analy_sys(ucell.lat, ucell.st, ucell.atoms, GlobalV::ofs_running);
+        ucell.symm.analy_sys(ucell.lat, ucell.st, ucell.atoms, GlobalV::ofs_running);
         ModuleBase::GlobalFunc::DONE(GlobalV::ofs_running, "SYMMETRY");
     }
     this->kv.set(ucell,ucell.symm, PARAM.inp.kpoint_file, PARAM.inp.nspin, ucell.G, ucell.latvec, GlobalV::ofs_running);
@@ -318,12 +318,12 @@ LR::ESolver_LR<T, TR>::ESolver_LR(const Input_para& inp, UnitCell& ucell) : inpu
     this->init_pot(chg_gs);
 
     // search adjacent atoms and init Gint
-    std::cout << "ucell.infoNL.get_rcutmax_Beta(): " << GlobalC::ucell.infoNL.get_rcutmax_Beta() << std::endl;
+    std::cout << "ucell.infoNL.get_rcutmax_Beta(): " << ucell.infoNL.get_rcutmax_Beta() << std::endl;
     double search_radius = -1.0;
     search_radius = atom_arrange::set_sr_NL(GlobalV::ofs_running,
         PARAM.inp.out_level,
         orb.get_rcutmax_Phi(),
-        GlobalC::ucell.infoNL.get_rcutmax_Beta(),
+        ucell.infoNL.get_rcutmax_Beta(),
         PARAM.globalv.gamma_only_local);
     atom_arrange::search(PARAM.inp.search_pbc,
         GlobalV::ofs_running,
@@ -341,7 +341,7 @@ LR::ESolver_LR<T, TR>::ESolver_LR(const Input_para& inp, UnitCell& ucell) : inpu
     std::vector<std::vector<double>> dpsi_u;
     std::vector<std::vector<double>> d2psi_u;
 
-    Gint_Tools::init_orb(dr_uniform, rcuts, GlobalC::ucell, orb, psi_u, dpsi_u, d2psi_u);
+    Gint_Tools::init_orb(dr_uniform, rcuts, ucell, orb, psi_u, dpsi_u, d2psi_u);
     this->gt_.set_pbc_grid(this->pw_rho->nx,
         this->pw_rho->ny,
         this->pw_rho->nz,
@@ -357,7 +357,7 @@ LR::ESolver_LR<T, TR>::ESolver_LR(const Input_para& inp, UnitCell& ucell) : inpu
         this->pw_rho->ny,
         this->pw_rho->nplane,
         this->pw_rho->startz_current,
-        GlobalC::ucell,
+        ucell,
         GlobalC::GridD,
         dr_uniform,
         rcuts,
@@ -396,10 +396,10 @@ LR::ESolver_LR<T, TR>::ESolver_LR(const Input_para& inp, UnitCell& ucell) : inpu
     {
         // set ccp_type according to the xc_kernel
         if (xc_kernel == "hf") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Hf; }
-        else if (xc_kernel == "hse") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Hse; }
+        else if (xc_kernel == "hse") { exx_info.info_global.ccp_type = Conv_Coulomb_Pot_K::Ccp_Type::Erfc; }
         this->exx_lri = std::make_shared<Exx_LRI<T>>(exx_info.info_ri);
-        this->exx_lri->init(MPI_COMM_WORLD, this->kv, orb);
-        this->exx_lri->cal_exx_ions(input.out_ri_cv);
+        this->exx_lri->init(MPI_COMM_WORLD, ucell,this->kv, orb);
+        this->exx_lri->cal_exx_ions(ucell,input.out_ri_cv);
     }
     // else
 #endif

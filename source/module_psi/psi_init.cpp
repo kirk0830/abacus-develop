@@ -125,7 +125,8 @@ void PSIInit<T, Device>::allocate_psi(Psi<std::complex<double>>*& psi,
                                       const int* ngk,
                                       const int npwx,
                                       Structure_Factor* p_sf,
-                                      pseudopot_cell_vnl* p_ppcell)
+                                      pseudopot_cell_vnl* p_ppcell,
+                                      const UnitCell& ucell)
 {
     // allocate memory for std::complex<double> datatype psi
     // New psi initializer in ABACUS, Developer's note:
@@ -158,7 +159,7 @@ void PSIInit<T, Device>::allocate_psi(Psi<std::complex<double>>*& psi,
         // however, init_at_1 does not actually initialize the psi, instead, it is a
         // function to calculate a interpolate table saving overlap intergral or say
         // Spherical Bessel Transform of atomic orbitals.
-        this->wf_old.init_at_1(p_sf, &p_ppcell->tab_at);
+        this->wf_old.init_at_1(ucell,p_sf, &p_ppcell->tab_at);
         // similarly, wfcinit not really initialize any wavefunction, instead, it initialize
         // the mapping from ixy, the 1d flattened index of point on fft grid (x, y) plane,
         // to the index of "stick", composed of grid points.
@@ -167,7 +168,10 @@ void PSIInit<T, Device>::allocate_psi(Psi<std::complex<double>>*& psi,
 }
 
 template <typename T, typename Device>
-void PSIInit<T, Device>::make_table(const int nks, Structure_Factor* p_sf, pseudopot_cell_vnl* p_ppcell)
+void PSIInit<T, Device>::make_table(const int nks, 
+                                    Structure_Factor* p_sf, 
+                                    pseudopot_cell_vnl* p_ppcell,
+                                    const UnitCell& ucell)
 {
     if (this->init_psi_method == "new")
     {
@@ -175,21 +179,20 @@ void PSIInit<T, Device>::make_table(const int nks, Structure_Factor* p_sf, pseud
     else // old initialization method, used in EXX calculation
     {
         this->wf_old.init_after_vc(nks); // reallocate wanf2, the planewave expansion of lcao
-        this->wf_old.init_at_1(
-            p_sf,
-            &p_ppcell->tab_at); // re-calculate tab_at, the overlap matrix between atomic pswfc and jlq
+
+        this->wf_old.init_at_1(ucell, p_sf, &p_ppcell->tab_at);    // re-calculate tab_at, the overlap matrix between atomic pswfc and jlq
     }
 }
 
 // in the following function, the psi on Device will be initialized with the CPU psi
 template <typename T, typename Device>
-void PSIInit<T, Device>::initialize_psi(
-    Psi<std::complex<double>>* psi, // the one always on CPU
-    psi::Psi<T, Device>* kspw_psi,  // the one may be on GPU. In CPU case, it is the same as psi
-    hamilt::Hamilt<T, Device>* p_hamilt,
-    const pseudopot_cell_vnl& nlpp,
-    std::ofstream& ofs_running,
-    const bool is_already_initpsi)
+void PSIInit<T, Device>::initialize_psi(Psi<std::complex<double>>* psi, // the one always on CPU
+                                        psi::Psi<T, Device>* kspw_psi,  // the one may be on GPU. In CPU case, it is the same as psi
+                                        hamilt::Hamilt<T, Device>* p_hamilt,
+                                        const pseudopot_cell_vnl& nlpp,
+                                        const UnitCell& ucell,
+                                        std::ofstream& ofs_running,
+                                        const bool is_already_initpsi)
 {
     ModuleBase::timer::tick("PSIInit", "initialize_psi");
 
@@ -320,6 +323,7 @@ void PSIInit<T, Device>::initialize_psi(
                                                    &this->wf_old,
                                                    nlpp.tab_at,
                                                    nlpp.lmaxkb,
+                                                   ucell,
                                                    p_hamilt);
                     }
                 }
@@ -336,6 +340,7 @@ void PSIInit<T, Device>::initialize_psi(
                                                &this->wf_old,
                                                nlpp.tab_at,
                                                nlpp.lmaxkb,
+                                               ucell,
                                                p_hamilt);
                 }
             }

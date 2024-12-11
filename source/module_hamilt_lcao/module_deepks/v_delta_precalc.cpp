@@ -30,7 +30,7 @@ void LCAO_Deepks::cal_v_delta_precalc(const int nlocal,
 
     this->cal_gvdm(nat);
     const double Rcut_Alpha = orb.Alpha[0].getRcut();
-    this->init_v_delta_pdm_shell(1,nlocal);
+    this->init_v_delta_pdm_shell(1,nlocal); // 1 for gamma-only
    
     for (int T0 = 0; T0 < ucell.ntype; T0++)
     {

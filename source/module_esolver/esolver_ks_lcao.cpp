@@ -178,12 +178,12 @@ void ESolver_KS_LCAO<TK, TR>::before_all_runners(UnitCell& ucell, const Input_pa
             // initialize 2-center radial tables for EXX-LRI
             if (GlobalC::exx_info.info_ri.real_number)
             {
-                this->exx_lri_double->init(MPI_COMM_WORLD, this->kv, orb_);
+                this->exx_lri_double->init(MPI_COMM_WORLD, ucell,this->kv, orb_);
                 this->exd->exx_before_all_runners(this->kv, ucell, this->pv);
             }
             else
             {
-                this->exx_lri_complex->init(MPI_COMM_WORLD, this->kv, orb_);
+                this->exx_lri_complex->init(MPI_COMM_WORLD, ucell,this->kv, orb_);
                 this->exc->exx_before_all_runners(this->kv, ucell, this->pv);
             }
         }
@@ -193,7 +193,8 @@ void ESolver_KS_LCAO<TK, TR>::before_all_runners(UnitCell& ucell, const Input_pa
     // 7) initialize DFT+U
     if (PARAM.inp.dft_plus_u)
     {
-        GlobalC::dftu.init(ucell, &this->pv, this->kv.get_nks(), orb_);
+        auto* dftu = ModuleDFTU::DFTU::get_instance();
+        dftu->init(ucell, &this->pv, this->kv.get_nks(), &orb_);
     }
 
     // 8) initialize ppcell
@@ -511,7 +512,7 @@ void ESolver_KS_LCAO<TK, TR>::iter_init(UnitCell& ucell, const int istep, const 
 
     if (iter == 1)
     {
-        this->p_chgmix->init_mixing(); // init mixing
+        this->p_chgmix->mix_reset(); // init mixing
         this->p_chgmix->mixing_restart_step = PARAM.inp.scf_nmax + 1;
         this->p_chgmix->mixing_restart_count = 0;
         // this output will be removed once the feeature is stable
@@ -623,6 +624,7 @@ void ESolver_KS_LCAO<TK, TR>::iter_init(UnitCell& ucell, const int istep, const 
         if (GlobalC::exx_info.info_ri.real_number)
         {
             this->exd->exx_eachiterinit(istep,
+                                        ucell,
                                         *dynamic_cast<const elecstate::ElecStateLCAO<TK>*>(this->pelec)->get_DM(),
                                         this->kv,
                                         iter);
@@ -630,6 +632,7 @@ void ESolver_KS_LCAO<TK, TR>::iter_init(UnitCell& ucell, const int istep, const 
         else
         {
             this->exc->exx_eachiterinit(istep,
+                                        ucell,
                                         *dynamic_cast<const elecstate::ElecStateLCAO<TK>*>(this->pelec)->get_DM(),
                                         this->kv,
                                         iter);
@@ -660,11 +663,6 @@ void ESolver_KS_LCAO<TK, TR>::iter_init(UnitCell& ucell, const int istep, const 
 
     if (PARAM.inp.vl_in_h)
     {
-        // update Gint_K
-        if (!PARAM.globalv.gamma_only_local)
-        {
-            this->GK.renew();
-        }
         // update real space Hamiltonian
         this->p_hamilt->refresh();
     }
@@ -961,10 +959,6 @@ void ESolver_KS_LCAO<TK, TR>::after_scf(UnitCell& ucell, const int istep)
 #endif
 
     // 6) write Hamiltonian and Overlap matrix
-    if (!PARAM.globalv.gamma_only_local && (PARAM.inp.out_mat_hs[0] || PARAM.inp.deepks_v_delta))
-    {
-        this->GK.renew(true);
-    }
     for (int ik = 0; ik < this->kv.get_nks(); ++ik)
     {
         if (PARAM.inp.out_mat_hs[0] || PARAM.inp.deepks_v_delta)
@@ -1009,7 +1003,7 @@ void ESolver_KS_LCAO<TK, TR>::after_scf(UnitCell& ucell, const int istep)
 #ifdef __DEEPKS
             if (PARAM.inp.deepks_out_labels && PARAM.inp.deepks_v_delta)
             {
-                DeePKS_domain::save_h_mat(h_mat.p, this->pv.nloc);
+                DeePKS_domain::save_h_mat(h_mat.p, this->pv.nloc, ik);
             }
 #endif
         }
@@ -1061,7 +1055,7 @@ void ESolver_KS_LCAO<TK, TR>::after_scf(UnitCell& ucell, const int istep)
                 occ_number_ks(ik, inb) /= this->kv.wk[ik];
             }
         }
-        this->rdmft_solver.update_elec(occ_number_ks, *(this->psi));
+        this->rdmft_solver.update_elec(ucell,occ_number_ks, *(this->psi));
 
         //! initialize the gradients of Etotal with respect to occupation numbers and wfc, 
         //! and set all elements to 0. 
@@ -1083,10 +1077,11 @@ void ESolver_KS_LCAO<TK, TR>::after_scf(UnitCell& ucell, const int istep)
         RPA_LRI<TK, double> rpa_lri_double(GlobalC::exx_info.info_ri);
         rpa_lri_double.cal_postSCF_exx(*dynamic_cast<const elecstate::ElecStateLCAO<TK>*>(this->pelec)->get_DM(),
                                        MPI_COMM_WORLD,
+                                       ucell,
                                        this->kv,
                                        orb_);
         rpa_lri_double.init(MPI_COMM_WORLD, this->kv, orb_.cutoffs());
-        rpa_lri_double.out_for_RPA(this->pv, *(this->psi), this->pelec);
+        rpa_lri_double.out_for_RPA(ucell,this->pv, *(this->psi), this->pelec);
     }
 #endif
 
@@ -1146,7 +1141,7 @@ void ESolver_KS_LCAO<TK, TR>::after_scf(UnitCell& ucell, const int istep)
         //! Perform Mulliken charge analysis
         if (PARAM.inp.out_mul)
         {
-            ModuleIO::cal_mag(&(this->pv), this->p_hamilt, this->kv, this->pelec, ucell, istep, true);
+            ModuleIO::cal_mag(&(this->pv), this->p_hamilt, this->kv, this->pelec, this->two_center_bundle_, this->orb_, ucell, istep, true);
         }
     }
 
