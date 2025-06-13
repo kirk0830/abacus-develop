@@ -159,39 +159,82 @@ void ESolver_FP::after_scf(UnitCell& ucell, const int istep, const bool conv_eso
 
     if (istep % PARAM.inp.out_interval == 0)
     {
-        // 4) write charge density
+        // 4) write charge density and its gradient
         if (PARAM.inp.out_chg[0] > 0)
         {
             for (int is = 0; is < PARAM.inp.nspin; is++)
             {
                 this->pw_rhod->real2recip(this->chr.rho_save[is], this->chr.rhog_save[is]);
-                std::string fn =PARAM.globalv.global_out_dir + "/chgs" + std::to_string(is + 1) + ".cube";
-                ModuleIO::write_vdata_palgrid(Pgrid,
-                                              this->chr.rho_save[is],
-                                              is,
-                                              PARAM.inp.nspin,
-                                              istep,
-                                              fn,
-                                              this->pelec->eferm.get_efval(is),
-                                              &(ucell),
-                                              PARAM.inp.out_chg[1],
-                                              1);
+                std::string fn = PARAM.globalv.global_out_dir + "/chgs" + std::to_string(is + 1) + ".cube";
+                ModuleIO::write_vdata_palgrid(/*pgrid = */ Pgrid,
+                                              /*data = */ this->chr.rho_save[is],
+                                              /*is = */ is,
+                                              /*nspin = */ PARAM.inp.nspin,
+                                              /*iter = */ istep,
+                                              /*fn = */ fn,
+                                              /*ef = */ this->pelec->eferm.get_efval(is),
+                                              /*ucell = */ &(ucell),
+                                              /*precision = */ PARAM.inp.out_chg[1],
+                                              /*out_fermi = */ 1);
 
                 if (XC_Functional::get_ked_flag())
                 {
-                    fn =PARAM.globalv.global_out_dir + "/taus" + std::to_string(is + 1) + ".cube";
-                    ModuleIO::write_vdata_palgrid(Pgrid,
-                                                  this->chr.kin_r_save[is],
-                                                  is,
-                                                  PARAM.inp.nspin,
-                                                  istep,
-                                                  fn,
-                                                  this->pelec->eferm.get_efval(is),
-                                                  &(ucell));
+                    fn = PARAM.globalv.global_out_dir + "/taus" + std::to_string(is + 1) + ".cube";
+                    ModuleIO::write_vdata_palgrid(/*pgrid = */ Pgrid,
+                                                  /*data = */ this->chr.kin_r_save[is],
+                                                  /*is = */ is,
+                                                  /*nspin = */ PARAM.inp.nspin,
+                                                  /*iter = */ istep,
+                                                  /*fn = */ fn,
+                                                  /*ef = */ this->pelec->eferm.get_efval(is),
+                                                  /*ucell = */ &(ucell));
                 }
             }
         }
-
+        if (PARAM.inp.out_chg[0] == 3) // write the gradient of charge density (x, y, z)
+        {
+            // allocate, the function XC_Functional::grad_rho will directly return the
+            // gradient of charge density in real space, so allocate the memory space
+            // as the size of real space grid multplied by 3 (x, y, z)
+            std::vector<ModuleBase::Vector3<double>> grad_rho(
+                this->pw_rhod->nrxx, ModuleBase::Vector3<double>(0.0, 0.0, 0.0));
+            // writing the cube file requires the data to be successive, while the output
+            // is vector of Vector3, whose data is successive by x,y,z,x,y,z,..., so we need to
+            // allocate a vector to store the data
+            std::vector<double> data(this->pw_rhod->nrxx, 0.0);
+            const std::vector<std::string> dir = {"x", "y", "z"};
+            for (int is = 0; is < PARAM.inp.nspin; is++)
+            {
+                XC_Functional::grad_rho(/*rhog = */ this->chr.rhog_save[is],
+                                        /*gdr = */ grad_rho.data(),
+                                        /*rho_basis = */ this->pw_rhod,
+                                        /*tpiba = */ ucell.tpiba);
+                // write the gradient of charge density
+                for (int i = 0; i < 3; i++) // index both the grad_rho and dir
+                {
+                    const std::string fn = PARAM.globalv.global_out_dir 
+                        + "/chgs" + std::to_string(is + 1) 
+                        + "_grad" + dir[i] + ".cube";
+                    // get the gradient of charge density in realspace
+#ifdef _OPENMP // thread parallel for loop because the realspace grid may be large
+                    #pragma omp parallel for schedule(static, 1024)
+#endif
+                    for (int ir = 0; ir < this->pw_rhod->nrxx; ir++)
+                    {
+                        data[ir] = grad_rho[ir][i];
+                    }
+                    // write the gradient of charge density
+                    ModuleIO::write_vdata_palgrid(/*pgrid = */ Pgrid,
+                                                  /*data = */ data.data(),
+                                                  /*is = */ is,
+                                                  /*nspin = */ PARAM.inp.nspin,
+                                                  /*iter = */ istep,
+                                                  /*fn = */ fn,
+                                                  /*ef = */ this->pelec->eferm.get_efval(is),
+                                                  /*ucell = */ &(ucell));
+                }
+            }
+        }
         // 5) write potential
         if (PARAM.inp.out_pot == 1 || PARAM.inp.out_pot == 3)
         {
@@ -199,16 +242,16 @@ void ESolver_FP::after_scf(UnitCell& ucell, const int istep, const bool conv_eso
             {
                 std::string fn =PARAM.globalv.global_out_dir + "/pots" + std::to_string(is + 1) + ".cube";
 
-                ModuleIO::write_vdata_palgrid(Pgrid,
-                                              this->pelec->pot->get_effective_v(is),
-                                              is,
-                                              PARAM.inp.nspin,
-                                              istep,
-                                              fn,
-                                              0.0, // efermi
-                                              &(ucell),
-                                              3,  // precision
-                                              0); // out_fermi
+                ModuleIO::write_vdata_palgrid(/*pgrid = */ Pgrid,
+                                              /*data = */ this->pelec->pot->get_effective_v(is),
+                                              /*is = */ is,
+                                              /*nspin = */ PARAM.inp.nspin,
+                                              /*iter = */ istep,
+                                              /*fn = */ fn,
+                                              /*ef = */ 0.0, // efermi
+                                              /*ucell = */ &(ucell),
+                                              /*precision = */ 3,
+                                              /*out_fermi = */ 0);
             }
         }
         else if (PARAM.inp.out_pot == 2)
