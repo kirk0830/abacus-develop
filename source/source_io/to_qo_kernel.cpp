@@ -2,6 +2,7 @@
 #include "source_base/ylm.h"
 #include "source_basis/module_nao/two_center_integrator.h"
 #include "source_io/to_qo.h"
+#include "source_io/module_parameter/parameter.h"
 #ifdef __MPI
 #include "source_base/parallel_common.h"
 #endif
@@ -9,14 +10,33 @@
 toQO::toQO(const std::string& qo_basis,
            const std::vector<std::string>& strategies,
            const double& qo_thr,
-           const std::vector<double>& screening_coeffs)
+           const std::vector<double>& screening_coeffs,
+           std::ofstream* ptr_log)
 {
+
     // totally the same as what defined in INPUT
     // qo_switch_ = 1 // certainly, this constructor will only be called when qo_switch_ == 1
     qo_basis_ = qo_basis;
     strategies_ = strategies;
     qo_thr_ = qo_thr;
     screening_coeffs_ = screening_coeffs;
+    ofs_ = ptr_log;
+
+    *ofs_ << "\n\n\n\n";
+    *ofs_ << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << std::endl;
+    *ofs_ << " |                                                                    |" << std::endl;
+    *ofs_ << " |  Quasiatomic orbital (QO) representation transform:                |" << std::endl;
+    *ofs_ << " |  This is a post-processing step. Searching for the smaller         |" << std::endl;
+    *ofs_ << " |  basis sets that can project states of interest into it without    |" << std::endl;
+    *ofs_ << " |  significant loss of information (accuracy)                        |" << std::endl;
+    *ofs_ << " |                                                                    |" << std::endl;
+    *ofs_ << " |  Please see the reference for more theoretical background:         |" << std::endl;
+    *ofs_ << " |  Qian X, Li J, Qi L, et al.                                        |" << std::endl;
+    *ofs_ << " |  Quasiatomic orbitals for ab initio tight-binding analysis[J].     |" << std::endl;
+    *ofs_ << " |  Physical Review B, 2008, 78(24): 245112.                          |" << std::endl;
+    *ofs_ << " |                                                                    |" << std::endl;
+    *ofs_ << " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << std::endl;
+    *ofs_ << "\n\n\n\n";
 }
 
 toQO::~toQO()
@@ -96,6 +116,23 @@ void toQO::initialize(const std::string& out_dir,
     ao_->set_uniform_grid(true, ngrid, cutoff, 'i', true);
     overlap_calculator_->tabulate(*ao_, *nao_, 'S', ngrid, cutoff);
 
+    // neighboring list search, based on built RadialCollection(s)
+    double temp = -1.0;
+    temp = atom_arrange::set_sr_NL(*ofs_,
+                                   PARAM.inp.out_level,
+                                   PARAM.inp.search_radius,
+                                   p_ucell_->infoNL.get_rcutmax_Beta(),
+                                   PARAM.globalv.gamma_only_local);
+    temp = std::max(temp, rcut_max);
+    neighbor_searcher_ = std::unique_ptr<Grid_Driver>(
+        new Grid_Driver(PARAM.inp.test_deconstructor, PARAM.inp.test_grid));
+    atom_arrange::search(PARAM.globalv.search_pbc,
+                         *ofs_,
+                         *neighbor_searcher_,
+                         *p_ucell_,
+                         temp,
+                         PARAM.inp.test_atom_input);
+                         
     // prepare for Ylm, if this is not called, the Ylm will not be available and always
     // return 0.0
     ModuleBase::Ylm::set_coefficients();
@@ -325,11 +362,9 @@ void toQO::calculate_ovlpR(const int iR)
             ModuleBase::Vector3<double> rij = p_ucell_->atoms[jt].tau[ja] - p_ucell_->atoms[it].tau[ia];
             // there is waste here, but for easy to understand, I don't optimize it.
             ModuleBase::Vector3<int> R = supercells_[iR];
-            ModuleBase::Vector3<double> Rij;
-            Rij.x = rij.x + double(R.x) * p_ucell_->a1.x + double(R.y) * p_ucell_->a2.x + double(R.z) * p_ucell_->a3.x;
-            Rij.y = rij.y + double(R.x) * p_ucell_->a1.y + double(R.y) * p_ucell_->a2.y + double(R.z) * p_ucell_->a3.y;
-            Rij.z = rij.z + double(R.x) * p_ucell_->a1.z + double(R.y) * p_ucell_->a2.z + double(R.z) * p_ucell_->a3.z;
-            Rij *= p_ucell_->lat0; // convert to Bohr
+            ModuleBase::Vector3<double> Rij = p_ucell_->cal_dtau(p_ucell_->itia2iat(it, ia),
+                                                                 p_ucell_->itia2iat(jt, ja),
+                                                                 R) * p_ucell_->lat0; // convert to Bohr
             overlap_calculator_->calculate(it, li, izeta, mi, jt, lj, jzeta, mj, Rij, &ovlpR_[irow * nphi_ + icol]);
         }
     }

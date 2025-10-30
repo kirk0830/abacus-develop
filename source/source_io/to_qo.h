@@ -2,11 +2,15 @@
 #define TOQO_H
 
 #include <iostream>
+#include <fstream>
 #include <string>
+#include <memory>
 #include "source_cell/unitcell.h"
 #include "source_basis/module_nao/two_center_integrator.h"
 #include "source_base/atom_in.h"
 #include "source_base/vector3.h"
+#include "source_cell/module_neighbor/sltk_grid_driver.h"
+#include "source_cell/module_neighbor/sltk_atom_arrange.h"
 /*
     Quasiatomic Orbital (QO) transformation and analysis
 
@@ -48,7 +52,9 @@ class toQO
         toQO(const std::string& qo_basis,                   //< basis of QO, hydrogen or pswfc
              const std::vector<std::string>& strategies,    //< strategies for each atom type, more details see manual
              const double& qo_thr,                          //< threshold for QO
-             const std::vector<double>& screening_coeffs);  //< screening coefficients for pseudowavefunction or Slater screening
+             const std::vector<double>& screening_coeffs,   //< screening coefficients for pseudowavefunction or Slater screening
+             std::ofstream* ptr_log = nullptr
+            );
         ~toQO();
 
         // initialize function is to import program-related information, it is,
@@ -208,6 +214,7 @@ class toQO
         double qo_thr_ = 1e-10;
         std::vector<double> screening_coeffs_;
         // Variables defining I/O
+        std::ofstream* ofs_ = nullptr;
         std::string out_dir_;                   //< directory of output files
         std::string pseudo_dir_;                //< directory of pseudopotentials
         std::string orbital_dir_;               //< directory of numerical atomic orbitals
@@ -217,6 +224,7 @@ class toQO
         // variables defining structure
         const UnitCell* p_ucell_ = nullptr;                        //< interface to the unitcell, its lifespan is not managed here
         std::vector<int> iRs_;                                     //< indices of supercell vectors (local)
+        std::unique_ptr<Grid_Driver> neighbor_searcher_;           //< neighbor searcher
         std::vector<ModuleBase::Vector3<int>> supercells_;         //< supercell vectors (global)
         std::vector<int> iks_;                                     //< indices of kpoints (local)
         std::vector<ModuleBase::Vector3<double>> kvecs_d_;         //< kpoints (global)
