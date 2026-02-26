@@ -27,7 +27,7 @@ bilayer = Atoms(
     scaled_positions=np.array([[  0,   0, 1/3],
                                [1/3, 2/3, 1/3],
                                [  0,   0, 2/3],
-                               [1/3, 2/3, 2/3]]),
+                               [2/3, 1/3, 2/3]]),
     cell=cellpar_to_cell([2.47, 2.47, 8, 90, 90, 120]),
     pbc=True
 )
@@ -49,8 +49,8 @@ def calculate_interlayer_distance(atoms: Atoms,
     dyn.run(fmax=0.01)
     # after relax, get the distance
     pos = atoms.get_positions()
-    zuniq = np.unique(pos[:, 2])
-    return float(zuniq.max() - zuniq.min())
+    z1, z2 = pos[:len(atoms)//2, 2], pos[len(atoms)//2:, 2]
+    return float(z2.mean() - z1.mean())
 
 common = {
     'profile': aprof,
