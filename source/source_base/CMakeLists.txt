@@ -105,6 +105,11 @@ if(BUILD_TESTING)
     LIBS parameter base device container
     SOURCES test/test_distributed_ndarray.cpp
   )
+  AddTest(
+    TARGET MODULE_BASE_ndarray_test
+    LIBS parameter
+    SOURCES test/ndarray_test.cpp
+  )
   if(ENABLE_MPI) #Zhang Xiaoyang: A temporary solution. Please classify the serial and parrallel tests later. 2024-7-8
     add_subdirectory(test)
     add_subdirectory(test_parallel)

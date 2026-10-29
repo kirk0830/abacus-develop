@@ -12,12 +12,16 @@
 #ifndef NDARRAY_H
 #define NDARRAY_H
 
-#include <vector>
-#include <cassert>
-#include <iostream>
 #include <algorithm>
-#include <type_traits>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <initializer_list>
 #include <numeric>
+#include <type_traits>
+#include <utility>
+#include <vector>
 // for heterogeneous computing, we can use ATen::Tensor
 //#include "./module_container/ATen/tensor.h"
 
@@ -43,20 +47,19 @@ public:
      * @brief Construct a new NDArray object
      * 
      */
-    NDArray()= delete;
+    NDArray() = delete;
     // initializer_list constructor
     NDArray(std::initializer_list<size_t> il) : shape_(il), data_(std::accumulate(shape_.begin(), shape_.end(), 1, std::multiplies<size_t>())) {}
     NDArray(std::initializer_list<int> il) : shape_(il.begin(), il.end()), data_(std::accumulate(shape_.begin(), shape_.end(), 1, std::multiplies<size_t>())) {}
     // variadic template constructor, (delegate constructor)
     template<typename... Args> NDArray(const size_t idx, Args... args) : NDArray({idx, static_cast<size_t>(args)...}) {}
     template<typename... Args> NDArray(const int& idx, Args... args) : NDArray({idx, static_cast<int>(args)...}) {} // not happy with this because size_t can have larger range
-    // copy constructor
-    NDArray(const NDArray& other) : data_(other.data_), shape_(other.shape_) {}
-    // move constructor
-    NDArray(NDArray&& other) : data_(std::move(other.data_)), shape_(std::move(other.shape_)) {}
+
+    NDArray(const NDArray&) = default;
+    NDArray(NDArray&&) noexcept = default;
 
     // destructor
-    ~NDArray() {}
+    ~NDArray() = default;
 
     // operators
     /**
@@ -65,27 +68,11 @@ public:
      * @param other 
      * @return NDArray& 
      */
-    NDArray& operator=(const NDArray& other)
-    {
-        if (this != &other)
-        {
-            data_ = other.data_;
-            shape_ = other.shape_;
-        }
-        return *this;
-    }
+    NDArray& operator=(const NDArray&) = default;
     /**
      * @brief = operator, move assignment
     */
-    NDArray& operator=(NDArray&& other)
-    {
-        if (this != &other)
-        {
-            data_ = std::move(other.data_);
-            shape_ = std::move(other.shape_);
-        }
-        return *this;
-    }
+    NDArray& operator=(NDArray&&) noexcept = default;
 
     /**
      * @brief == operator
@@ -222,5 +209,18 @@ private:
     // for GPU-compatible data container, will be replaced by raw pointer
     std::vector<T> data_;
 };
+
+static_assert(std::is_copy_constructible<NDArray<int>>::value,
+              "NDArray<T> must remain copy constructible.");
+static_assert(std::is_copy_assignable<NDArray<int>>::value,
+              "NDArray<T> must remain copy assignable.");
+static_assert(std::is_move_constructible<NDArray<int>>::value,
+              "NDArray<T> must remain move constructible.");
+static_assert(std::is_move_assignable<NDArray<int>>::value,
+              "NDArray<T> must remain move assignable.");
+static_assert(std::is_nothrow_move_constructible<NDArray<int>>::value,
+              "NDArray<T> move construction must not throw.");
+static_assert(std::is_nothrow_move_assignable<NDArray<int>>::value,
+              "NDArray<T> move assignment must not throw.");
 
 #endif // NDARRAY_H

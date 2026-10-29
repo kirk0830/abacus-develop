@@ -232,12 +232,6 @@ AddTest(
 )
 
 AddTest(
-  TARGET MODULE_BASE_ndarray_test
-  LIBS parameter
-  SOURCES ndarray_test.cpp
-)
-
-AddTest(
   TARGET MODULE_BASE_formatter_test
   LIBS parameter
   SOURCES formatter_test.cpp
