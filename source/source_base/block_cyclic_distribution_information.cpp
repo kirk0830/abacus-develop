@@ -8,7 +8,33 @@
 #include <cassert>
 #include <cmath>
 #include <numeric>
+#include <stdexcept>
 #include <utility>
+
+namespace
+{
+void validate_global_shape(const int global_rows, const int global_cols)
+{
+    if (global_rows <= 0)
+    {
+        throw std::invalid_argument("global_rows must be positive");
+    }
+    if (global_cols <= 0)
+    {
+        throw std::invalid_argument("global_cols must be positive");
+    }
+}
+
+#ifdef __MPI
+void validate_block_size(const int block_size)
+{
+    if (block_size <= 0)
+    {
+        throw std::invalid_argument("block_size must be positive");
+    }
+}
+#endif
+} // namespace
 
 BlockCyclicDistributionInformation::~BlockCyclicDistributionInformation()
 {
@@ -96,6 +122,17 @@ int BlockCyclicDistributionInformation::get_number_of_global_cols() const
     return number_of_local_cols_;
 }
 
+int BlockCyclicDistributionInformation::get_leading_dimension() const
+{
+#ifdef __MPI
+    if (!is_serial_ && blacs_context_ >= 0)
+    {
+        return descriptor_[kDescriptorLeadingDimIndex];
+    }
+#endif
+    return std::max(number_of_local_rows_, 1);
+}
+
 #ifdef __MPI
 MPI_Comm BlockCyclicDistributionInformation::get_mpi_communicator() const
 {
@@ -151,6 +188,7 @@ void BlockCyclicDistributionInformation::set_distribution_info(const int global_
                                                                const int global_cols,
                                                                const int block_size)
 {
+    is_serial_ = false;
     block_size_ = block_size;
 
     // number of local rows and columns
@@ -195,69 +233,118 @@ void BlockCyclicDistributionInformation::set_distribution_info(const int global_
     }
 }
 
-int BlockCyclicDistributionInformation::initialize(const int grid_rows,
-                                                   const int grid_cols,
+int BlockCyclicDistributionInformation::initialize(const int global_rows,
+                                                   const int global_cols,
                                                    const int block_size,
                                                    const MPI_Comm comm)
 {
-    return initialize(grid_rows, grid_cols, block_size, comm, false);
+    return initialize(global_rows, global_cols, block_size, comm, false);
 }
 
-int BlockCyclicDistributionInformation::initialize(const int grid_rows,
-                                                   const int grid_cols,
+int BlockCyclicDistributionInformation::initialize(const int global_rows,
+                                                   const int global_cols,
                                                    const int block_size,
                                                    const MPI_Comm comm,
                                                    const bool swap_grid)
 {
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+
     release_blacs_grid();
     initialize_blacs_grid(comm, swap_grid);
     owns_blacs_context_ = true;
-    set_distribution_info(grid_rows, grid_cols, block_size);
+    set_distribution_info(global_rows, global_cols, block_size);
     return number_of_local_rows_ == 0 || number_of_local_cols_ == 0;
 }
 
-int BlockCyclicDistributionInformation::bind_descriptor(const int grid_rows,
-                                                        const int grid_cols,
+int BlockCyclicDistributionInformation::initialize(const int global_rows,
+                                                   const int global_cols,
+                                                   const int number_of_row_processors,
+                                                   const int number_of_column_processors,
+                                                   const int block_size,
+                                                   const MPI_Comm communicator)
+{
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+    if (number_of_row_processors <= 0)
+    {
+        throw std::invalid_argument("number_of_row_processors must be positive");
+    }
+    if (number_of_column_processors <= 0)
+    {
+        throw std::invalid_argument("number_of_column_processors must be positive");
+    }
+
+    const int communicator_size = Parallel_Common::comm_size(communicator);
+    const long long grid_size
+        = static_cast<long long>(number_of_row_processors) * number_of_column_processors;
+    if (grid_size != communicator_size)
+    {
+        throw std::invalid_argument(
+            "number_of_row_processors * number_of_column_processors must equal communicator size");
+    }
+
+    release_blacs_grid();
+    grid_rows_ = number_of_row_processors;
+    grid_cols_ = number_of_column_processors;
+    blacs_context_ = Csys2blacs_handle(communicator);
+    char order = 'R';
+    Cblacs_gridinit(&blacs_context_, &order, grid_rows_, grid_cols_);
+    Cblacs_gridinfo(blacs_context_, &grid_rows_, &grid_cols_, &coord_[0], &coord_[1]);
+    owns_blacs_context_ = true;
+    set_distribution_info(global_rows, global_cols, block_size);
+    return number_of_local_rows_ == 0 || number_of_local_cols_ == 0;
+}
+
+int BlockCyclicDistributionInformation::bind_descriptor(const int global_rows,
+                                                        const int global_cols,
                                                         const int block_size,
                                                         const int blacs_context)
 {
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+    if (blacs_context < 0)
+    {
+        throw std::invalid_argument("blacs_context must be valid");
+    }
+
     // Reusing the context owned by this object must not destroy the grid or
     // drop ownership; otherwise the grid about to be reused is released.
     if (blacs_context == blacs_context_ && owns_blacs_context_)
     {
         Cblacs_gridinfo(blacs_context, &grid_rows_, &grid_cols_, &coord_[0], &coord_[1]);
-        set_distribution_info(grid_rows, grid_cols, block_size);
+        set_distribution_info(global_rows, global_cols, block_size);
         return number_of_local_rows_ == 0 || number_of_local_cols_ == 0;
     }
     release_blacs_grid();
     blacs_context_ = blacs_context;
     owns_blacs_context_ = false;
     Cblacs_gridinfo(blacs_context, &grid_rows_, &grid_cols_, &coord_[0], &coord_[1]);
-    set_distribution_info(grid_rows, grid_cols, block_size);
+    set_distribution_info(global_rows, global_cols, block_size);
     return number_of_local_rows_ == 0 || number_of_local_cols_ == 0;
 }
 
-int BlockCyclicDistributionInformation::init(const int grid_rows,
-                                             const int grid_cols,
+int BlockCyclicDistributionInformation::init(const int global_rows,
+                                             const int global_cols,
                                              const int block_size,
                                              const MPI_Comm comm,
                                              const bool swap_grid)
 {
-    return initialize(grid_rows, grid_cols, block_size, comm, swap_grid);
+    return initialize(global_rows, global_cols, block_size, comm, swap_grid);
 }
 
-int BlockCyclicDistributionInformation::set(const int grid_rows,
-                                            const int grid_cols,
+int BlockCyclicDistributionInformation::set(const int global_rows,
+                                            const int global_cols,
                                             const int block_size,
                                             const int blacs_context)
 {
-    return bind_descriptor(grid_rows, grid_cols, block_size, blacs_context);
+    return bind_descriptor(global_rows, global_cols, block_size, blacs_context);
 }
 #endif
 
 void BlockCyclicDistributionInformation::initialize_serial(const int global_rows, const int global_cols)
 {
-    assert(global_rows > 0 && global_cols > 0);
+    validate_global_shape(global_rows, global_cols);
 
     block_size_ = 1;
     grid_rows_ = 1;
@@ -283,4 +370,74 @@ void BlockCyclicDistributionInformation::initialize_serial(const int global_rows
     // dangles once the owner destroys it.
     blacs_context_ = kUnownedBlacsContext;
 #endif
+}
+
+#ifdef __MPI
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int block_size,
+    const MPI_Comm communicator)
+{
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+
+    std::shared_ptr<BlockCyclicDistributionInformation> distribution
+        = std::make_shared<BlockCyclicDistributionInformation>();
+    distribution->initialize(global_rows, global_cols, block_size, communicator);
+    return distribution;
+}
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int number_of_row_processors,
+    const int number_of_column_processors,
+    const int block_size,
+    const MPI_Comm communicator)
+{
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+
+    std::shared_ptr<BlockCyclicDistributionInformation> distribution
+        = std::make_shared<BlockCyclicDistributionInformation>();
+    distribution->initialize(global_rows,
+                             global_cols,
+                             number_of_row_processors,
+                             number_of_column_processors,
+                             block_size,
+                             communicator);
+    return distribution;
+}
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int block_size,
+    const int blacs_context)
+{
+    validate_global_shape(global_rows, global_cols);
+    validate_block_size(block_size);
+    if (blacs_context < 0)
+    {
+        throw std::invalid_argument("blacs_context must be valid");
+    }
+
+    std::shared_ptr<BlockCyclicDistributionInformation> distribution
+        = std::make_shared<BlockCyclicDistributionInformation>();
+    distribution->bind_descriptor(global_rows, global_cols, block_size, blacs_context);
+    return distribution;
+}
+#endif
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols)
+{
+    validate_global_shape(global_rows, global_cols);
+
+    std::shared_ptr<BlockCyclicDistributionInformation> distribution
+        = std::make_shared<BlockCyclicDistributionInformation>();
+    distribution->initialize_serial(global_rows, global_cols);
+    return distribution;
 }

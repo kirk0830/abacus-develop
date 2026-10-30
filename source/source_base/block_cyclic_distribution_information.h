@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #ifdef __MPI
@@ -48,6 +49,8 @@ class BlockCyclicDistributionInformation
     {
         return block_size_;
     }
+
+    int get_leading_dimension() const;
 
     int get_grid_rows() const
     {
@@ -111,14 +114,20 @@ class BlockCyclicDistributionInformation
     void initialize_serial(const int global_rows, const int global_cols);
 
 #ifdef __MPI
-    int initialize(const int grid_rows, const int grid_cols, const int block_size, const MPI_Comm comm);
-    int initialize(const int grid_rows,
-                   const int grid_cols,
+    int initialize(const int global_rows, const int global_cols, const int block_size, const MPI_Comm comm);
+    int initialize(const int global_rows,
+                   const int global_cols,
                    const int block_size,
                    const MPI_Comm comm,
                    const bool swap_grid);
-    int bind_descriptor(const int grid_rows,
-                        const int grid_cols,
+    int initialize(const int global_rows,
+                   const int global_cols,
+                   const int number_of_row_processors,
+                   const int number_of_column_processors,
+                   const int block_size,
+                   const MPI_Comm communicator);
+    int bind_descriptor(const int global_rows,
+                        const int global_cols,
                         const int block_size,
                         const int blacs_context);
 
@@ -218,13 +227,13 @@ class BlockCyclicDistributionInformation
     }
 
 #ifdef __MPI
-    int init(const int grid_rows,
-             const int grid_cols,
+    int init(const int global_rows,
+             const int global_cols,
              const int block_size,
              const MPI_Comm comm,
              const bool swap_grid = false);
-    int set(const int grid_rows,
-            const int grid_cols,
+    int set(const int global_rows,
+            const int global_cols,
             const int block_size,
             const int blacs_context);
 
@@ -281,5 +290,31 @@ class BlockCyclicDistributionInformation
     void release_blacs_grid();
 #endif
 };
+
+#ifdef __MPI
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int block_size,
+    const MPI_Comm communicator);
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int number_of_row_processors,
+    const int number_of_column_processors,
+    const int block_size,
+    const MPI_Comm communicator);
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols,
+    const int block_size,
+    const int blacs_context);
+#endif
+
+std::shared_ptr<const BlockCyclicDistributionInformation> make_frozen_distribution(
+    const int global_rows,
+    const int global_cols);
 
 #endif

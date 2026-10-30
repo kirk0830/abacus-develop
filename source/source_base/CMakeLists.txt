@@ -111,6 +111,26 @@ if(BUILD_TESTING)
     SOURCES test/ndarray_test.cpp
   )
   if(ENABLE_MPI) #Zhang Xiaoyang: A temporary solution. Please classify the serial and parrallel tests later. 2024-7-8
+    add_test(
+      NAME MODULE_BASE_block_cyclic_distribution_information_2ranks
+      COMMAND mpirun -np 2 "$<TARGET_FILE:MODULE_BASE_block_cyclic_distribution_information>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    add_test(
+      NAME MODULE_BASE_block_cyclic_distribution_information_4ranks
+      COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_block_cyclic_distribution_information>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    add_test(
+      NAME MODULE_BASE_distributed_ndarray_2ranks
+      COMMAND mpirun -np 2 "$<TARGET_FILE:MODULE_BASE_distributed_ndarray>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    add_test(
+      NAME MODULE_BASE_distributed_ndarray_4ranks
+      COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_distributed_ndarray>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
     add_subdirectory(test)
     add_subdirectory(test_parallel)
     add_subdirectory(kernels/test)

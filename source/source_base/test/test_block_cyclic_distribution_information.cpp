@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <memory>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -37,6 +39,167 @@ constexpr int kDescriptorProcessRowsIndex = 6;
 constexpr int kDescriptorProcessColsIndex = 7;
 constexpr int kDescriptorLeadingDimIndex = 8;
 constexpr int kUnownedBlacsContext = -1;
+
+#ifdef __MPI
+void choose_process_grid(int& number_of_row_processors, int& number_of_column_processors)
+{
+    const int process_count = Parallel_Common::comm_size(MPI_COMM_WORLD);
+    number_of_row_processors = 1;
+    number_of_column_processors = process_count;
+    for (int candidate = 1; candidate * candidate <= process_count; ++candidate)
+    {
+        if (process_count % candidate == 0)
+        {
+            number_of_row_processors = candidate;
+            number_of_column_processors = process_count / candidate;
+        }
+    }
+}
+
+int count_local_indices(const int global_size,
+                        const int block_size,
+                        const int coordinate,
+                        const int processor_count)
+{
+    int local_size = 0;
+    for (int index = 0; index < global_size; ++index)
+    {
+        const int owner = (index / block_size) % processor_count;
+        if (owner == coordinate)
+        {
+            ++local_size;
+        }
+    }
+    return local_size;
+}
+
+void check_explicit_layout(const int global_rows,
+                           const int global_cols,
+                           const int block_size)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    BlockCyclicDistributionInformation distribution;
+    const int is_degenerate = distribution.initialize(global_rows,
+                                                       global_cols,
+                                                       number_of_row_processors,
+                                                       number_of_column_processors,
+                                                       block_size,
+                                                       MPI_COMM_WORLD);
+    const int expected_local_rows = count_local_indices(global_rows,
+                                                        block_size,
+                                                        distribution.get_coord_row(),
+                                                        number_of_row_processors);
+    const int expected_local_cols = count_local_indices(global_cols,
+                                                        block_size,
+                                                        distribution.get_coord_col(),
+                                                        number_of_column_processors);
+
+    EXPECT_EQ(distribution.get_number_of_global_rows(), global_rows);
+    EXPECT_EQ(distribution.get_number_of_global_cols(), global_cols);
+    EXPECT_EQ(distribution.get_number_of_local_rows(), expected_local_rows);
+    EXPECT_EQ(distribution.get_number_of_local_cols(), expected_local_cols);
+    EXPECT_EQ(distribution.get_number_of_local_elements(),
+              static_cast<int64_t>(expected_local_rows) * expected_local_cols);
+    const int expected_is_degenerate = expected_local_rows == 0 || expected_local_cols == 0;
+    EXPECT_EQ(is_degenerate, expected_is_degenerate);
+
+    for (int global_row = 0; global_row < global_rows; ++global_row)
+    {
+        const int row_owner = (global_row / block_size) % number_of_row_processors;
+        const int local_row = distribution.global_to_local_row(global_row);
+        if (row_owner == distribution.get_coord_row())
+        {
+            EXPECT_NE(local_row, -1);
+            if (local_row != -1)
+            {
+                EXPECT_EQ(distribution.local_to_global_row(local_row), global_row);
+            }
+        }
+        else
+        {
+            EXPECT_EQ(local_row, -1);
+        }
+    }
+    for (int global_col = 0; global_col < global_cols; ++global_col)
+    {
+        const int column_owner = (global_col / block_size) % number_of_column_processors;
+        const int local_col = distribution.global_to_local_col(global_col);
+        if (column_owner == distribution.get_coord_col())
+        {
+            EXPECT_NE(local_col, -1);
+            if (local_col != -1)
+            {
+                EXPECT_EQ(distribution.local_to_global_col(local_col), global_col);
+            }
+        }
+        else
+        {
+            EXPECT_EQ(local_col, -1);
+        }
+    }
+    for (int global_row = 0; global_row < global_rows; ++global_row)
+    {
+        for (int global_col = 0; global_col < global_cols; ++global_col)
+        {
+            const int row_owner = (global_row / block_size) % number_of_row_processors;
+            const int column_owner = (global_col / block_size) % number_of_column_processors;
+            const int expected_owner = row_owner * number_of_column_processors + column_owner;
+            EXPECT_EQ(distribution.owner_of_index(global_row, global_col), expected_owner);
+            EXPECT_EQ(distribution.owns_index(global_row, global_col),
+                      expected_owner == distribution.get_coord_row() * number_of_column_processors
+                              + distribution.get_coord_col());
+        }
+    }
+}
+
+void check_frozen_distribution(
+    const std::shared_ptr<const BlockCyclicDistributionInformation>& distribution,
+    const int global_rows,
+    const int global_cols,
+    const int block_size)
+{
+    ASSERT_NE(distribution, nullptr);
+    const int* const descriptor = distribution->get_descriptor();
+    ASSERT_NE(descriptor, nullptr);
+    EXPECT_GE(distribution->get_blacs_context(), 0);
+    EXPECT_EQ(distribution->get_number_of_global_rows(), global_rows);
+    EXPECT_EQ(distribution->get_number_of_global_cols(), global_cols);
+    EXPECT_EQ(distribution->get_block_size(), block_size);
+    EXPECT_EQ(descriptor[kDescriptorBlacsContextIndex], distribution->get_blacs_context());
+    EXPECT_EQ(descriptor[kDescriptorGlobalRowsIndex], global_rows);
+    EXPECT_EQ(descriptor[kDescriptorGlobalColsIndex], global_cols);
+    EXPECT_EQ(descriptor[kDescriptorBlockRowsIndex], block_size);
+    EXPECT_EQ(descriptor[kDescriptorBlockColsIndex], block_size);
+    EXPECT_EQ(descriptor[kDescriptorLeadingDimIndex], distribution->get_leading_dimension());
+    EXPECT_EQ(distribution->get_number_of_local_elements(),
+              static_cast<int64_t>(distribution->get_number_of_local_rows())
+                  * distribution->get_number_of_local_cols());
+
+    for (int global_row = 0; global_row < global_rows; ++global_row)
+    {
+        const int first_local_row = distribution->global_to_local_row(global_row);
+        const int repeated_local_row = distribution->global_to_local_row(global_row);
+        EXPECT_EQ(first_local_row, repeated_local_row);
+        if (first_local_row != -1)
+        {
+            EXPECT_EQ(distribution->local_to_global_row(first_local_row), global_row);
+        }
+    }
+    for (int global_col = 0; global_col < global_cols; ++global_col)
+    {
+        const int first_local_col = distribution->global_to_local_col(global_col);
+        const int repeated_local_col = distribution->global_to_local_col(global_col);
+        EXPECT_EQ(first_local_col, repeated_local_col);
+        if (first_local_col != -1)
+        {
+            EXPECT_EQ(distribution->local_to_global_col(first_local_col), global_col);
+        }
+    }
+}
+#endif
 } // namespace
 
 TEST(BlockCyclicDistributionInformationTest, DefaultConstruction)
@@ -95,6 +258,30 @@ TEST(BlockCyclicDistributionInformationTest, SerialInitializationAndIndexMaps)
     EXPECT_EQ(distribution.get_coord_col(), 3);
     EXPECT_TRUE(distribution.owns_blacs_index(2, 3));
     EXPECT_FALSE(distribution.owns_blacs_index(3, 2));
+}
+
+TEST(BlockCyclicDistributionInformationTest, SerialFrozenDistribution)
+{
+    const int global_rows = 7;
+    const int global_cols = 5;
+    const std::shared_ptr<const BlockCyclicDistributionInformation> distribution
+        = make_frozen_distribution(global_rows, global_cols);
+
+    ASSERT_NE(distribution, nullptr);
+    EXPECT_TRUE(distribution->is_serial());
+    EXPECT_EQ(distribution->get_number_of_local_rows(), global_rows);
+    EXPECT_EQ(distribution->get_number_of_local_cols(), global_cols);
+    EXPECT_EQ(distribution->get_leading_dimension(), global_rows);
+    for (int global_row = 0; global_row < global_rows; ++global_row)
+    {
+        EXPECT_EQ(distribution->global_to_local_row(global_row), global_row);
+        EXPECT_EQ(distribution->local_to_global_row(global_row), global_row);
+    }
+    for (int global_col = 0; global_col < global_cols; ++global_col)
+    {
+        EXPECT_EQ(distribution->global_to_local_col(global_col), global_col);
+        EXPECT_EQ(distribution->local_to_global_col(global_col), global_col);
+    }
 }
 
 TEST(BlockCyclicDistributionInformationTest, SerialMovePreservesValues)
@@ -167,6 +354,257 @@ TEST(BlockCyclicDistributionInformationTest, MpiInitializationAndIndexMaps)
     EXPECT_EQ(distribution.owner_of_index(1, 1), distribution.owner_processor(1, 1));
     EXPECT_TRUE(distribution.owns_blacs_index(distribution.get_coord_row(),
                                               distribution.get_coord_col()));
+}
+
+TEST(BlockCyclicDistributionInformationTest, ExplicitGridNotRewritten)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    BlockCyclicDistributionInformation distribution;
+    const int global_rows = 17;
+    const int global_cols = 13;
+    const int is_degenerate = distribution.initialize(global_rows,
+                                                       global_cols,
+                                                       number_of_row_processors,
+                                                       number_of_column_processors,
+                                                       2,
+                                                       MPI_COMM_WORLD);
+
+    EXPECT_EQ(distribution.get_grid_rows(), number_of_row_processors);
+    EXPECT_EQ(distribution.get_grid_cols(), number_of_column_processors);
+    EXPECT_EQ(is_degenerate, 0);
+}
+
+TEST(BlockCyclicDistributionInformationTest, MpiInitializationAfterSerialClearsSerialMode)
+{
+    BlockCyclicDistributionInformation distribution;
+    distribution.initialize_serial(3, 4);
+    ASSERT_TRUE(distribution.is_serial());
+
+    distribution.initialize(8, 6, 2, MPI_COMM_WORLD);
+
+    EXPECT_FALSE(distribution.is_serial());
+    EXPECT_EQ(distribution.get_number_of_global_rows(), 8);
+    EXPECT_EQ(distribution.get_number_of_global_cols(), 6);
+    EXPECT_GT(distribution.get_blacs_context(), kUnownedBlacsContext);
+}
+
+TEST(BlockCyclicDistributionInformationTest, BorrowAfterSerialClearsSerialMode)
+{
+    BlockCyclicDistributionInformation owner;
+    owner.initialize(8, 6, 2, MPI_COMM_WORLD);
+
+    BlockCyclicDistributionInformation distribution;
+    distribution.initialize_serial(3, 4);
+    ASSERT_TRUE(distribution.is_serial());
+
+    const int owner_context = owner.get_blacs_context();
+    distribution.bind_descriptor(8, 6, 2, owner_context);
+
+    EXPECT_FALSE(distribution.is_serial());
+    EXPECT_EQ(distribution.get_number_of_global_rows(), 8);
+    EXPECT_EQ(distribution.get_number_of_global_cols(), 6);
+    EXPECT_EQ(distribution.get_blacs_context(), owner_context);
+}
+
+TEST(BlockCyclicDistributionInformationTest, InvalidGridProductFails)
+{
+    const int process_count = Parallel_Common::comm_size(MPI_COMM_WORLD);
+    const int invalid_column_processors = 2;
+
+    BlockCyclicDistributionInformation invalid_product;
+    EXPECT_THROW(invalid_product.initialize(8,
+                                            6,
+                                            process_count,
+                                            invalid_column_processors,
+                                            2,
+                                            MPI_COMM_WORLD),
+                 std::invalid_argument);
+
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+    const int invalid_block_size = 0;
+    BlockCyclicDistributionInformation invalid_block;
+    EXPECT_THROW(invalid_block.initialize(8,
+                                          6,
+                                          number_of_row_processors,
+                                          number_of_column_processors,
+                                          invalid_block_size,
+                                          MPI_COMM_WORLD),
+                 std::invalid_argument);
+
+    const int invalid_row_processors = 0;
+    BlockCyclicDistributionInformation invalid_row_grid;
+    EXPECT_THROW(invalid_row_grid.initialize(8,
+                                             6,
+                                             invalid_row_processors,
+                                             number_of_column_processors,
+                                             2,
+                                             MPI_COMM_WORLD),
+                 std::invalid_argument);
+}
+
+TEST(BlockCyclicDistributionInformationTest, ZeroLocalBlock)
+{
+    const int process_count = Parallel_Common::comm_size(MPI_COMM_WORLD);
+    if (process_count < 2)
+    {
+        GTEST_SKIP() << "A zero-local-block rank requires at least two processes";
+    }
+
+    const int number_of_row_processors = 1;
+    const int number_of_column_processors = process_count;
+    BlockCyclicDistributionInformation distribution;
+    const int is_degenerate = distribution.initialize(1,
+                                                      1,
+                                                      number_of_row_processors,
+                                                      number_of_column_processors,
+                                                      1,
+                                                      MPI_COMM_WORLD);
+
+    const bool owns_only_element = distribution.owns_index(0, 0);
+    const int expected_is_degenerate = owns_only_element ? 0 : 1;
+    EXPECT_EQ(is_degenerate, expected_is_degenerate);
+    if (owns_only_element)
+    {
+        EXPECT_EQ(distribution.get_number_of_local_rows(), 1);
+        EXPECT_EQ(distribution.get_number_of_local_cols(), 1);
+        EXPECT_EQ(distribution.get_number_of_local_elements(), 1);
+        EXPECT_EQ(distribution.global_to_local_row(0), 0);
+        EXPECT_EQ(distribution.global_to_local_col(0), 0);
+    }
+    else
+    {
+        EXPECT_EQ(distribution.get_number_of_local_rows(), 1);
+        EXPECT_EQ(distribution.get_number_of_local_cols(), 0);
+        EXPECT_EQ(distribution.get_number_of_local_elements(), 0);
+        EXPECT_EQ(distribution.global_to_local_row(0), 0);
+        EXPECT_EQ(distribution.global_to_local_col(0), -1);
+    }
+}
+
+TEST(BlockCyclicDistributionInformationTest, NonDivisibleShapes)
+{
+    check_explicit_layout(8, 6, 2);
+    check_explicit_layout(5, 3, 2);
+}
+
+TEST(BlockCyclicDistributionInformationTest, LldPaddingAndMapping)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    const int global_rows = 8;
+    const int global_cols = 6;
+    const int block_size = 2;
+    BlockCyclicDistributionInformation distribution;
+    distribution.initialize(global_rows,
+                            global_cols,
+                            number_of_row_processors,
+                            number_of_column_processors,
+                            block_size,
+                            MPI_COMM_WORLD);
+
+    const int* const descriptor = distribution.get_descriptor();
+    ASSERT_NE(descriptor, nullptr);
+    const int expected_leading_dimension = std::max(distribution.get_number_of_local_rows(), 1);
+    EXPECT_EQ(distribution.get_leading_dimension(), expected_leading_dimension);
+    EXPECT_EQ(descriptor[kDescriptorBlacsContextIndex], distribution.get_blacs_context());
+    EXPECT_EQ(descriptor[kDescriptorGlobalRowsIndex], global_rows);
+    EXPECT_EQ(descriptor[kDescriptorGlobalColsIndex], global_cols);
+    EXPECT_EQ(descriptor[kDescriptorBlockRowsIndex], block_size);
+    EXPECT_EQ(descriptor[kDescriptorBlockColsIndex], block_size);
+    EXPECT_EQ(descriptor[kDescriptorLeadingDimIndex], expected_leading_dimension);
+    EXPECT_EQ(descriptor[kDescriptorLeadingDimIndex],
+              distribution.get_leading_dimension());
+
+    const int64_t storage_elements = static_cast<int64_t>(descriptor[kDescriptorLeadingDimIndex])
+        * distribution.get_number_of_local_cols();
+    EXPECT_GE(storage_elements, distribution.get_number_of_local_elements());
+}
+
+TEST(BlockCyclicDistributionInformationTest, FrozenDistributionStable)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    const int global_rows = 8;
+    const int global_cols = 6;
+    const int block_size = 2;
+    const std::shared_ptr<const BlockCyclicDistributionInformation> first
+        = make_frozen_distribution(global_rows,
+                                   global_cols,
+                                   number_of_row_processors,
+                                   number_of_column_processors,
+                                   block_size,
+                                   MPI_COMM_WORLD);
+    const std::shared_ptr<const BlockCyclicDistributionInformation> second
+        = make_frozen_distribution(global_rows,
+                                   global_cols,
+                                   number_of_row_processors,
+                                   number_of_column_processors,
+                                   block_size,
+                                   MPI_COMM_WORLD);
+
+    check_frozen_distribution(first, global_rows, global_cols, block_size);
+    check_frozen_distribution(second, global_rows, global_cols, block_size);
+
+    BlockCyclicDistributionInformation owner;
+    owner.initialize(global_rows,
+                     global_cols,
+                     number_of_row_processors,
+                     number_of_column_processors,
+                     block_size,
+                     MPI_COMM_WORLD);
+    const std::shared_ptr<const BlockCyclicDistributionInformation> borrowed
+        = make_frozen_distribution(global_rows,
+                                   global_cols,
+                                   block_size,
+                                   owner.get_blacs_context());
+    check_frozen_distribution(borrowed, global_rows, global_cols, block_size);
+    EXPECT_EQ(borrowed->get_blacs_context(), owner.get_blacs_context());
+}
+
+TEST(BlockCyclicDistributionInformationTest, MoveClearsSourceExplicitGrid)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    BlockCyclicDistributionInformation source;
+    source.initialize(12,
+                      10,
+                      number_of_row_processors,
+                      number_of_column_processors,
+                      2,
+                      MPI_COMM_WORLD);
+    const int source_context = source.get_blacs_context();
+    ASSERT_GE(source_context, 0);
+
+    BlockCyclicDistributionInformation moved(std::move(source));
+    EXPECT_EQ(moved.get_blacs_context(), source_context);
+    EXPECT_EQ(source.get_blacs_context(), kUnownedBlacsContext);
+}
+
+TEST(BlockCyclicDistributionInformationTest, CommunicatorBorrowLifetime)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    BlockCyclicDistributionInformation distribution;
+    distribution.initialize(12,
+                            10,
+                            number_of_row_processors,
+                            number_of_column_processors,
+                            2,
+                            MPI_COMM_WORLD);
+    EXPECT_NE(distribution.get_mpi_communicator(), MPI_COMM_NULL);
 }
 
 TEST(BlockCyclicDistributionInformationTest, MpiMoveTransfersBlacsOwnershipOnce)

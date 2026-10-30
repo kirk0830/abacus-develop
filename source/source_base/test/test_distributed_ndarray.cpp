@@ -3,6 +3,7 @@
 #endif
 
 #include "source_base/module_container/NDArray/distributed_ndarray.h"
+#include "source_base/parallel_common.h"
 
 #include "gtest/gtest.h"
 
@@ -31,6 +32,21 @@ constexpr int kDescriptorBlockColsIndex = 5;
 constexpr int kDescriptorProcessRowsIndex = 6;
 constexpr int kDescriptorProcessColsIndex = 7;
 constexpr int kDescriptorLeadingDimIndex = 8;
+
+void choose_process_grid(int& number_of_row_processors, int& number_of_column_processors)
+{
+    const int process_count = Parallel_Common::comm_size(MPI_COMM_WORLD);
+    number_of_row_processors = 1;
+    number_of_column_processors = process_count;
+    for (int candidate = 1; candidate * candidate <= process_count; ++candidate)
+    {
+        if (process_count % candidate == 0)
+        {
+            number_of_row_processors = candidate;
+            number_of_column_processors = process_count / candidate;
+        }
+    }
+}
 #endif
 
 std::shared_ptr<BlockCyclicDistributionInformation> make_serial_distribution(
@@ -118,6 +134,69 @@ void check_linearization(const int global_rows,
         }
     }
 }
+
+#ifdef __MPI
+void check_mpi_linearization(const int global_rows,
+                             const int global_cols,
+                             const int block_size,
+                             const StorageMajorOrder major_order)
+{
+    int number_of_row_processors = 0;
+    int number_of_column_processors = 0;
+    choose_process_grid(number_of_row_processors, number_of_column_processors);
+
+    const std::shared_ptr<const BlockCyclicDistributionInformation> distribution
+        = make_frozen_distribution(global_rows,
+                                   global_cols,
+                                   number_of_row_processors,
+                                   number_of_column_processors,
+                                   block_size,
+                                   MPI_COMM_WORLD);
+    ASSERT_NE(distribution, nullptr);
+
+    const int leading_dimension = distribution->get_leading_dimension();
+    DistributedNDArray<double> array(distribution, major_order, leading_dimension);
+    EXPECT_EQ(array.get_leading_dimension(), leading_dimension);
+    EXPECT_EQ(array.get_distribution().get(), distribution.get());
+    EXPECT_EQ(array.get_number_of_local_rows(), distribution->get_number_of_local_rows());
+    EXPECT_EQ(array.get_number_of_local_cols(), distribution->get_number_of_local_cols());
+
+    for (int global_row = 0; global_row < global_rows; ++global_row)
+    {
+        for (int global_col = 0; global_col < global_cols; ++global_col)
+        {
+            const bool owns_index = distribution->owns_index(global_row, global_col);
+            const bool array_owns_index = array.owns_global_index(global_row, global_col);
+            EXPECT_EQ(array_owns_index, owns_index);
+
+            const int local_row = distribution->global_to_local_row(global_row);
+            const int local_col = distribution->global_to_local_col(global_col);
+            const bool local_owns_row = local_row != -1;
+            const bool local_owns_col = local_col != -1;
+            const int row_owner = (global_row / block_size) % number_of_row_processors;
+            const int column_owner = (global_col / block_size) % number_of_column_processors;
+            const bool expected_local_row = row_owner == distribution->get_coord_row();
+            const bool expected_local_col = column_owner == distribution->get_coord_col();
+            EXPECT_EQ(local_owns_row, expected_local_row);
+            EXPECT_EQ(local_owns_col, expected_local_col);
+
+            if (owns_index)
+            {
+                ASSERT_NE(local_row, -1);
+                ASSERT_NE(local_col, -1);
+                double& global_element = array.at_global(global_row, global_col);
+                const double& local_element = array.at_local(local_row, local_col);
+                EXPECT_EQ(&global_element, &local_element);
+
+                const double element_value
+                    = static_cast<double>(global_row * global_cols + global_col);
+                global_element = element_value;
+                EXPECT_EQ(array.at_local(local_row, local_col), element_value);
+            }
+        }
+    }
+}
+#endif
 } // namespace
 
 TEST(DistributedNDArrayTest, ColumnMajorLinearization)
@@ -147,6 +226,16 @@ TEST(DistributedNDArrayTest, AtGlobalAssertsOutsideGlobalBounds)
 }
 
 #ifdef __MPI
+TEST(DistributedNDArrayTest, MpiAtLocalAtGlobal8x6)
+{
+    check_mpi_linearization(8, 6, 2, StorageMajorOrder::ColumnMajor);
+}
+
+TEST(DistributedNDArrayTest, MpiAtLocalAtGlobal5x3)
+{
+    check_mpi_linearization(5, 3, 2, StorageMajorOrder::RowMajor);
+}
+
 TEST(DistributedNDArrayTest, RejectsMismatchedDescriptorLeadingDimension)
 {
     const int global_rows = 4;
@@ -171,6 +260,13 @@ TEST(DistributedNDArrayTest, RejectsMismatchedDescriptorLeadingDimension)
 
 int main(int argc, char** argv)
 {
+#ifdef __MPI
+    MPI_Init(&argc, &argv);
+#endif
     testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    const int result = RUN_ALL_TESTS();
+#ifdef __MPI
+    MPI_Finalize();
+#endif
+    return result;
 }
