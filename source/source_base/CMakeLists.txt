@@ -60,6 +60,7 @@ add_library(
     sph_bessel_tf.cpp
     cubic_spline.cpp
     block_cyclic_distribution_information.cpp
+    matrix2d.cpp
     module_out/binstream.cpp
     module_out/filename.cpp
     module_out/sparse_matrix.cpp
@@ -106,6 +107,11 @@ if(BUILD_TESTING)
     SOURCES test/test_distributed_ndarray.cpp
   )
   AddTest(
+    TARGET MODULE_BASE_matrix2d
+    LIBS parameter base device container
+    SOURCES test/test_matrix2d.cpp
+  )
+  AddTest(
     TARGET MODULE_BASE_ndarray_test
     LIBS parameter
     SOURCES test/ndarray_test.cpp
@@ -129,6 +135,16 @@ if(BUILD_TESTING)
     add_test(
       NAME MODULE_BASE_distributed_ndarray_4ranks
       COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_distributed_ndarray>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    add_test(
+      NAME MODULE_BASE_matrix2d_2ranks
+      COMMAND mpirun -np 2 "$<TARGET_FILE:MODULE_BASE_matrix2d>"
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    add_test(
+      NAME MODULE_BASE_matrix2d_4ranks
+      COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_matrix2d>"
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
     add_subdirectory(test)
