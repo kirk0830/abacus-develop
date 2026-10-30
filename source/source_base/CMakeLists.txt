@@ -111,6 +111,11 @@ if(BUILD_TESTING)
     LIBS parameter base device container
     SOURCES test/test_matrix2d.cpp
   )
+  set_tests_properties(
+    MODULE_BASE_matrix2d
+    PROPERTIES ENVIRONMENT
+               "OMP_NUM_THREADS=1;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;HWLOC_COMPONENTS=-gl"
+  )
   AddTest(
     TARGET MODULE_BASE_ndarray_test
     LIBS parameter
@@ -146,6 +151,12 @@ if(BUILD_TESTING)
       NAME MODULE_BASE_matrix2d_4ranks
       COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_matrix2d>"
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    set_tests_properties(
+      MODULE_BASE_matrix2d_2ranks
+      MODULE_BASE_matrix2d_4ranks
+      PROPERTIES ENVIRONMENT
+                 "OMP_NUM_THREADS=1;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;HWLOC_COMPONENTS=-gl"
     )
     add_subdirectory(test)
     add_subdirectory(test_parallel)

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -91,6 +92,29 @@ class NDArray<T, 2> final
 
     NDArray& operator=(const NDArray&) = default;
     NDArray& operator=(NDArray&&) noexcept = default;
+
+    void fill(const T& value);
+    void scale(const T& value);
+    NDArray& operator+=(const NDArray& other);
+    NDArray& operator-=(const NDArray& other);
+    NDArray& operator*=(const NDArray& other);
+
+    NDArray& conjugate();
+
+    NDArray<double, 2> real() const;
+    NDArray<double, 2> imag() const;
+    void real(NDArray<double, 2>& output) const;
+    void imag(NDArray<double, 2>& output) const;
+
+    T sum() const;
+    double sum_squares() const;
+    T dot(const NDArray& other) const;
+    double norm2() const;
+    double max_abs() const;
+
+    NDArray gather() const;
+    NDArray gather_on_root(const int root_rank) const;
+    void scatter(const NDArray& global_matrix);
 
     T& at_global(const int global_row, const int global_col)
     {
@@ -336,6 +360,50 @@ class NDArray<T, 2> final
     }
 
   private:
+    struct EmptyMatrixTag
+    {
+    };
+
+    explicit NDArray(EmptyMatrixTag)
+    {
+    }
+
+    template <typename U>
+    void validate_compatible_layout(const NDArray<U, 2>& other) const
+    {
+        if (get_number_of_global_rows() != other.get_number_of_global_rows()
+            || get_number_of_global_cols() != other.get_number_of_global_cols())
+        {
+            throw std::invalid_argument("matrix global shapes are incompatible");
+        }
+
+        const bool this_is_distributed = distribution_ != nullptr;
+        const bool other_is_distributed = other.get_distribution() != nullptr;
+        if (this_is_distributed != other_is_distributed)
+        {
+            throw std::invalid_argument("host and distributed matrices are incompatible");
+        }
+
+        if (!this_is_distributed)
+        {
+            return;
+        }
+
+        if (distribution_->get_block_size() != other.get_distribution()->get_block_size())
+        {
+            throw std::invalid_argument("matrix block sizes are incompatible");
+        }
+        if (distribution_->get_grid_rows() != other.get_distribution()->get_grid_rows()
+            || distribution_->get_grid_cols() != other.get_distribution()->get_grid_cols())
+        {
+            throw std::invalid_argument("matrix process grids are incompatible");
+        }
+        if (distribution_ != other.get_distribution())
+        {
+            throw std::invalid_argument("matrix distribution handles are incompatible");
+        }
+    }
+
     void initialize_distributed_storage(
         const std::shared_ptr<const BlockCyclicDistributionInformation>& distribution)
     {
