@@ -27,7 +27,15 @@ void bind_hsolver(py::module& m)
 {
     // Bind diag_comm_info struct
     py::class_<hsolver::diag_comm_info>(m, "diag_comm_info")
+#ifdef __MPI
+        .def(py::init([](const int rank, const int nproc) {
+                 return hsolver::diag_comm_info(MPI_COMM_WORLD, rank, nproc);
+             }),
+             "rank"_a,
+             "nproc"_a)
+#else
         .def(py::init<const int, const int>(), "rank"_a, "nproc"_a)
+#endif
         .def_readonly("rank", &hsolver::diag_comm_info::rank)
         .def_readonly("nproc", &hsolver::diag_comm_info::nproc);
 

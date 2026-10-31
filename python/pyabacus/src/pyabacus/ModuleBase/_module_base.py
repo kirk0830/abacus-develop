@@ -4,11 +4,19 @@ pyabacus.ModuleBase
 Basic math functions and integrals.
 """
 
+from __future__ import annotations
+
 import numpy as np
 from typing import overload
 from numpy.typing import NDArray
 
-from ._base_pack import Sphbes as _Sphbes, Integral as _Integral, SphericalBesselTransformer as _SphericalBesselTransformer
+from ._base_pack import (
+    Sphbes as _Sphbes,
+    Integral as _Integral,
+    SphericalBesselTransformer as _SphericalBesselTransformer,
+    Matrix2dFloat64 as _Matrix2dFloat64,
+    Matrix2dComplex128 as _Matrix2dComplex128,
+)
 
 class Sphbes(_Sphbes):
     def __init__(self) -> None: 
@@ -133,3 +141,39 @@ class Integral(_Integral):
 class SphericalBesselTransformer(_SphericalBesselTransformer):
     def __init__(self) -> None: 
         super().__init__()
+
+
+class Matrix2dFloat64(_Matrix2dFloat64):
+    @classmethod
+    def from_numpy(cls, input_array: NDArray[np.float64]) -> Matrix2dFloat64:
+        base_matrix = _Matrix2dFloat64.from_numpy(input_array)
+        matrix = cls(*base_matrix.shape)
+        matrix.scatter(base_matrix)
+        return matrix
+
+    def to_numpy(self) -> NDArray[np.float64]:
+        return super().to_numpy()
+
+    def local_to_numpy(self) -> NDArray[np.float64]:
+        return super().local_to_numpy()
+
+    def to_npy(self, output_path: str, root_rank: int) -> bool:
+        return super().to_npy(output_path, root_rank)
+
+
+class Matrix2dComplex128(_Matrix2dComplex128):
+    @classmethod
+    def from_numpy(cls, input_array: NDArray[np.complex128]) -> Matrix2dComplex128:
+        base_matrix = _Matrix2dComplex128.from_numpy(input_array)
+        matrix = cls(*base_matrix.shape)
+        matrix.scatter(base_matrix)
+        return matrix
+
+    def to_numpy(self) -> NDArray[np.complex128]:
+        return super().to_numpy()
+
+    def local_to_numpy(self) -> NDArray[np.complex128]:
+        return super().local_to_numpy()
+
+    def to_npy(self, output_path: str, root_rank: int) -> bool:
+        return super().to_npy(output_path, root_rank)

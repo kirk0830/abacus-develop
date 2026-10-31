@@ -158,7 +158,11 @@ class DiagonalizerWrapper : public IDiagonalizer<TK>
         std::vector<double> diag_ethr(nbands_, config_.tolerance);
 
         // Create comm_info (single process for now)
+#ifdef __MPI
+        ::hsolver::diag_comm_info comm_info(MPI_COMM_WORLD, 0, 1);
+#else
         ::hsolver::diag_comm_info comm_info(0, 1);
+#endif
 
         // Run diagonalization
         int niter = david.diag(hpsi_func,
@@ -199,7 +203,11 @@ class DiagonalizerWrapper : public IDiagonalizer<TK>
         std::vector<double> diag_ethr(nbands_, config_.tolerance);
 
         // Create comm_info
+#ifdef __MPI
+        ::hsolver::diag_comm_info comm_info(MPI_COMM_WORLD, 0, 1);
+#else
         ::hsolver::diag_comm_info comm_info(0, 1);
+#endif
 
         // Run diagonalization
         int niter = dav_sub.diag(hpsi_func,
