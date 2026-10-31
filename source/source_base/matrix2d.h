@@ -100,6 +100,8 @@ class NDArray<T, 2> final
     NDArray& operator*=(const NDArray& other);
 
     NDArray& conjugate();
+    NDArray transpose() const;
+    NDArray matmul(const NDArray& other) const;
 
     NDArray<double, 2> real() const;
     NDArray<double, 2> imag() const;

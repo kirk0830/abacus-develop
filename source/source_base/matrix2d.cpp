@@ -1,6 +1,9 @@
 #include "source_base/matrix2d.h"
 
 #include "source_base/parallel_common.h"
+#ifdef __MPI
+#include "source_base/module_external/scalapack_connector.h"
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -603,6 +606,178 @@ void scatter_from_host(const Matrix2d<T>& global_matrix, Matrix2d<T>& local_matr
 #endif
 } // namespace
 
+namespace
+{
+template <typename T>
+void transpose_distributed(Matrix2d<T>& result, const Matrix2d<T>& source)
+{
+    static_cast<void>(result);
+    static_cast<void>(source);
+    throw std::invalid_argument(
+        "distributed transpose supports only double and complex<double>");
+}
+
+template <typename T>
+void matmul_distributed(Matrix2d<T>& result,
+                        const Matrix2d<T>& left,
+                        const Matrix2d<T>& right)
+{
+    static_cast<void>(result);
+    static_cast<void>(left);
+    static_cast<void>(right);
+    throw std::invalid_argument(
+        "distributed matmul supports only double and complex<double>");
+}
+
+#ifdef __MPI
+void transpose_distributed(Matrix2d<double>& result,
+                           const Matrix2d<double>& source)
+{
+    const int m = source.get_number_of_global_rows();
+    const int n = source.get_number_of_global_cols();
+    const double alpha = 1.0;
+    const double* source_data = source.data();
+    const int ia = 1;
+    const int ja = 1;
+    const int* source_descriptor = source.get_descriptor();
+    const double beta = 0.0;
+    double* result_data = result.data();
+    const int ic = 1;
+    const int jc = 1;
+    const int* result_descriptor = result.get_descriptor();
+    ScalapackConnector::tranu(n,
+                              m,
+                              alpha,
+                              source_data,
+                              ia,
+                              ja,
+                              source_descriptor,
+                              beta,
+                              result_data,
+                              ic,
+                              jc,
+                              result_descriptor);
+}
+
+void transpose_distributed(Matrix2d<std::complex<double>>& result,
+                           const Matrix2d<std::complex<double>>& source)
+{
+    const int m = source.get_number_of_global_rows();
+    const int n = source.get_number_of_global_cols();
+    const std::complex<double> alpha(1.0, 0.0);
+    const std::complex<double>* source_data = source.data();
+    const int ia = 1;
+    const int ja = 1;
+    const int* source_descriptor = source.get_descriptor();
+    const std::complex<double> beta(0.0, 0.0);
+    std::complex<double>* result_data = result.data();
+    const int ic = 1;
+    const int jc = 1;
+    const int* result_descriptor = result.get_descriptor();
+    ScalapackConnector::tranc(n,
+                              m,
+                              alpha,
+                              source_data,
+                              ia,
+                              ja,
+                              source_descriptor,
+                              beta,
+                              result_data,
+                              ic,
+                              jc,
+                              result_descriptor);
+}
+
+void matmul_distributed(Matrix2d<double>& result,
+                        const Matrix2d<double>& left,
+                        const Matrix2d<double>& right)
+{
+    const char transa = 'N';
+    const char transb = 'N';
+    const int m = left.get_number_of_global_rows();
+    const int n = right.get_number_of_global_cols();
+    const int k = left.get_number_of_global_cols();
+    const double alpha = 1.0;
+    const double* left_data = left.data();
+    const int ia = 1;
+    const int ja = 1;
+    const int* left_descriptor = left.get_descriptor();
+    const double* right_data = right.data();
+    const int ib = 1;
+    const int jb = 1;
+    const int* right_descriptor = right.get_descriptor();
+    const double beta = 0.0;
+    double* result_data = result.data();
+    const int ic = 1;
+    const int jc = 1;
+    const int* result_descriptor = result.get_descriptor();
+    ScalapackConnector::gemm(transa,
+                             transb,
+                             m,
+                             n,
+                             k,
+                             alpha,
+                             left_data,
+                             ia,
+                             ja,
+                             left_descriptor,
+                             right_data,
+                             ib,
+                             jb,
+                             right_descriptor,
+                             beta,
+                             result_data,
+                             ic,
+                             jc,
+                             result_descriptor);
+}
+
+void matmul_distributed(Matrix2d<std::complex<double>>& result,
+                        const Matrix2d<std::complex<double>>& left,
+                        const Matrix2d<std::complex<double>>& right)
+{
+    const char transa = 'N';
+    const char transb = 'N';
+    const int m = left.get_number_of_global_rows();
+    const int n = right.get_number_of_global_cols();
+    const int k = left.get_number_of_global_cols();
+    const std::complex<double> alpha(1.0, 0.0);
+    const std::complex<double>* left_data = left.data();
+    const int ia = 1;
+    const int ja = 1;
+    const int* left_descriptor = left.get_descriptor();
+    const std::complex<double>* right_data = right.data();
+    const int ib = 1;
+    const int jb = 1;
+    const int* right_descriptor = right.get_descriptor();
+    const std::complex<double> beta(0.0, 0.0);
+    std::complex<double>* result_data = result.data();
+    const int ic = 1;
+    const int jc = 1;
+    const int* result_descriptor = result.get_descriptor();
+    ScalapackConnector::gemm(transa,
+                             transb,
+                             m,
+                             n,
+                             k,
+                             alpha,
+                             left_data,
+                             ia,
+                             ja,
+                             left_descriptor,
+                             right_data,
+                             ib,
+                             jb,
+                             right_descriptor,
+                             beta,
+                             result_data,
+                             ic,
+                             jc,
+                             result_descriptor);
+}
+#endif
+} // namespace
+
 template <typename T>
 void NDArray<T, 2>::fill(const T& value)
 {
@@ -705,6 +880,110 @@ NDArray<T, 2>& NDArray<T, 2>::conjugate()
         }
     }
     return *this;
+}
+
+template <typename T>
+NDArray<T, 2> NDArray<T, 2>::transpose() const
+{
+    if (distribution_ == nullptr || distribution_->is_serial())
+    {
+        // Serial degenerate path: a serial frozen distribution owns the full
+        // matrix on one rank with column-major local layout; treat it like the
+        // host path so distributed operators degrade to the host side.
+        Matrix2d<T> result(cols_, rows_);
+        for (int row = 0; row < rows_; ++row)
+        {
+            for (int col = 0; col < cols_; ++col)
+            {
+                result.at_local(col, row) = conjugate_element(at_local(row, col));
+            }
+        }
+        return result;
+    }
+
+#ifdef __MPI
+    const int result_rows = get_number_of_global_cols();
+    const int result_cols = get_number_of_global_rows();
+    const int block_size = distribution_->get_block_size();
+    const int source_context = distribution_->get_blacs_context();
+    const std::shared_ptr<const BlockCyclicDistributionInformation> result_distribution
+        = make_frozen_distribution(result_rows, result_cols, block_size, source_context);
+    Matrix2d<T> result(result_distribution);
+    transpose_distributed(result, *this);
+    return result;
+#else
+    throw std::invalid_argument("distributed transpose requires MPI support");
+#endif
+}
+
+template <typename T>
+NDArray<T, 2> NDArray<T, 2>::matmul(const NDArray<T, 2>& other) const
+{
+    const int left_rows = get_number_of_global_rows();
+    const int shared_dimension = get_number_of_global_cols();
+    const int other_shared_dimension = other.get_number_of_global_rows();
+    const int result_cols = other.get_number_of_global_cols();
+    if (shared_dimension != other_shared_dimension)
+    {
+        throw std::invalid_argument("matrix inner dimensions are incompatible");
+    }
+
+    const bool this_is_serial
+        = distribution_ == nullptr || distribution_->is_serial();
+    const bool other_is_serial
+        = other.get_distribution() == nullptr || other.get_distribution()->is_serial();
+    if (this_is_serial != other_is_serial)
+    {
+        throw std::invalid_argument("host and distributed matrices are incompatible");
+    }
+
+    if (this_is_serial)
+    {
+        // Serial degenerate path: both sides are host or serial frozen
+        // distributions, so matmul degrades to the host triple loop.
+        Matrix2d<T> result(left_rows, result_cols);
+        for (int row = 0; row < left_rows; ++row)
+        {
+            for (int col = 0; col < result_cols; ++col)
+            {
+                T value = T();
+                for (int inner = 0; inner < shared_dimension; ++inner)
+                {
+                    value += at_local(row, inner) * other.at_local(inner, col);
+                }
+                result.at_local(row, col) = value;
+            }
+        }
+        return result;
+    }
+
+#ifdef __MPI
+    const std::shared_ptr<const BlockCyclicDistributionInformation> other_distribution
+        = other.get_distribution();
+    if (distribution_->get_block_size() != other_distribution->get_block_size())
+    {
+        throw std::invalid_argument("matrix block sizes are incompatible");
+    }
+    if (distribution_->get_grid_rows() != other_distribution->get_grid_rows()
+        || distribution_->get_grid_cols() != other_distribution->get_grid_cols())
+    {
+        throw std::invalid_argument("matrix process grids are incompatible");
+    }
+    if (distribution_->get_blacs_context() != other_distribution->get_blacs_context())
+    {
+        throw std::invalid_argument("matrix BLACS contexts are incompatible");
+    }
+
+    const int block_size = distribution_->get_block_size();
+    const int source_context = distribution_->get_blacs_context();
+    const std::shared_ptr<const BlockCyclicDistributionInformation> result_distribution
+        = make_frozen_distribution(left_rows, result_cols, block_size, source_context);
+    Matrix2d<T> result(result_distribution);
+    matmul_distributed(result, *this, other);
+    return result;
+#else
+    throw std::invalid_argument("distributed matmul requires MPI support");
+#endif
 }
 
 template <typename T>

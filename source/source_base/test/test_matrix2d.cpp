@@ -664,7 +664,377 @@ std::vector<std::pair<int, int>> available_process_grids()
     }
     return grids;
 }
+
+template <typename T>
+Matrix2d<T> make_transpose_reference(const Matrix2d<T>& source)
+{
+    const int source_rows = source.get_number_of_global_rows();
+    const int source_cols = source.get_number_of_global_cols();
+    Matrix2d<T> reference(source_cols, source_rows);
+    for (int row = 0; row < source_rows; ++row)
+    {
+        for (int col = 0; col < source_cols; ++col)
+        {
+            reference.at_local(col, row)
+                = conjugate_value(source.at_local(row, col));
+        }
+    }
+    return reference;
+}
+
+template <typename T>
+Matrix2d<T> make_matmul_reference(const Matrix2d<T>& left,
+                                  const Matrix2d<T>& right)
+{
+    const int rows = left.get_number_of_global_rows();
+    const int shared = left.get_number_of_global_cols();
+    const int cols = right.get_number_of_global_cols();
+    Matrix2d<T> reference(rows, cols);
+    for (int row = 0; row < rows; ++row)
+    {
+        for (int col = 0; col < cols; ++col)
+        {
+            T value = T();
+            for (int inner = 0; inner < shared; ++inner)
+            {
+                value += left.at_local(row, inner) * right.at_local(inner, col);
+            }
+            reference.at_local(row, col) = value;
+        }
+    }
+    return reference;
+}
+
+template <typename T>
+Matrix2d<T> make_host_transpose_reference(const int rows,
+                                          const int cols)
+{
+    return make_transpose_reference(make_host_reference<T>(rows, cols));
+}
+
+template <typename T>
+Matrix2d<T> make_host_matmul_reference(const int left_rows,
+                                       const int shared_cols,
+                                       const int right_cols)
+{
+    return make_matmul_reference(make_host_reference<T>(left_rows, shared_cols),
+                                 make_host_reference<T>(shared_cols, right_cols, 10.0));
+}
+
+template <typename T>
+void check_host_transpose(const int rows, const int cols)
+{
+    const Matrix2d<T> source = make_host_reference<T>(rows, cols);
+    const Matrix2d<T> transposed = source.transpose();
+    const Matrix2d<T> expected = make_transpose_reference(source);
+
+    verify_global_matrix(transposed, expected);
+    EXPECT_FALSE(transposed.is_distributed());
+    EXPECT_EQ(transposed.get_number_of_global_rows(), cols);
+    EXPECT_EQ(transposed.get_number_of_global_cols(), rows);
+}
+
+template <typename T>
+void check_host_matmul(const int left_rows,
+                       const int shared_cols,
+                       const int right_cols)
+{
+    const Matrix2d<T> left = make_host_reference<T>(left_rows, shared_cols);
+    const Matrix2d<T> right = make_host_reference<T>(shared_cols, right_cols, 10.0);
+    const Matrix2d<T> product = left.matmul(right);
+    const Matrix2d<T> expected = make_matmul_reference(left, right);
+
+    verify_global_matrix(product, expected);
+    EXPECT_FALSE(product.is_distributed());
+}
+
+#ifdef __MPI
+template <typename T>
+void check_mpi_descriptor_for_type(const Matrix2d<T>& matrix,
+                                   const int global_rows,
+                                   const int global_cols,
+                                   const int block_size)
+{
+    const int* const descriptor = matrix.get_descriptor();
+    ASSERT_NE(descriptor, nullptr);
+    EXPECT_EQ(descriptor[0], 1);
+    EXPECT_EQ(descriptor[1], matrix.get_blacs_context());
+    EXPECT_EQ(descriptor[2], global_rows);
+    EXPECT_EQ(descriptor[3], global_cols);
+    EXPECT_EQ(descriptor[4], block_size);
+    EXPECT_EQ(descriptor[5], block_size);
+    EXPECT_EQ(descriptor[6], 0);
+    EXPECT_EQ(descriptor[7], 0);
+    EXPECT_GT(descriptor[8], 0);
+}
+
+template <typename T>
+void check_distributed_transpose(const int rows,
+                                 const int cols,
+                                 const int grid_rows,
+                                 const int grid_cols,
+                                 const int block_size)
+{
+    Matrix2d<T> source(rows,
+                       cols,
+                       grid_rows,
+                       grid_cols,
+                       block_size,
+                       MPI_COMM_WORLD);
+    fill_global_values(source);
+    const int* const source_descriptor_before = source.get_descriptor();
+
+    const Matrix2d<T> transposed = source.transpose();
+    const int* const source_descriptor_after = source.get_descriptor();
+    const int* const result_descriptor = transposed.get_descriptor();
+
+    ASSERT_TRUE(transposed.is_distributed());
+    EXPECT_EQ(source_descriptor_after, source_descriptor_before);
+    EXPECT_NE(result_descriptor, nullptr);
+    EXPECT_EQ(source.get_blacs_context(), transposed.get_blacs_context());
+    check_mpi_descriptor_for_type(transposed, cols, rows, block_size);
+    verify_global_matrix(transposed.gather(),
+                         make_host_transpose_reference<T>(rows, cols));
+    EXPECT_EQ(source.get_descriptor(), source_descriptor_after);
+    EXPECT_EQ(transposed.get_descriptor(), result_descriptor);
+}
+
+template <typename T>
+void check_distributed_matmul(const int left_rows,
+                              const int shared_cols,
+                              const int right_cols,
+                              const int grid_rows,
+                              const int grid_cols,
+                              const int block_size)
+{
+    Matrix2d<T> left(left_rows,
+                     shared_cols,
+                     grid_rows,
+                     grid_cols,
+                     block_size,
+                     MPI_COMM_WORLD);
+    const int left_blacs_context = left.get_blacs_context();
+    const std::shared_ptr<const BlockCyclicDistributionInformation> right_distribution
+        = make_frozen_distribution(shared_cols,
+                                   right_cols,
+                                   block_size,
+                                   left_blacs_context);
+    Matrix2d<T> right(right_distribution);
+    fill_global_values(left);
+    fill_global_values(right, 10.0);
+
+    const int* const left_descriptor_before = left.get_descriptor();
+    const int* const right_descriptor_before = right.get_descriptor();
+    const Matrix2d<T> product = left.matmul(right);
+    const int* const left_descriptor_after = left.get_descriptor();
+    const int* const right_descriptor_after = right.get_descriptor();
+    const int* const result_descriptor = product.get_descriptor();
+
+    ASSERT_TRUE(product.is_distributed());
+    EXPECT_EQ(left_descriptor_after, left_descriptor_before);
+    EXPECT_EQ(right_descriptor_after, right_descriptor_before);
+    EXPECT_NE(result_descriptor, nullptr);
+    EXPECT_EQ(left.get_blacs_context(), right.get_blacs_context());
+    EXPECT_EQ(left.get_blacs_context(), product.get_blacs_context());
+    check_mpi_descriptor_for_type(product, left_rows, right_cols, block_size);
+    verify_global_matrix(product.gather(),
+                         make_host_matmul_reference<T>(left_rows,
+                                                       shared_cols,
+                                                       right_cols));
+    EXPECT_EQ(left.get_descriptor(), left_descriptor_after);
+    EXPECT_EQ(right.get_descriptor(), right_descriptor_after);
+    EXPECT_EQ(product.get_descriptor(), result_descriptor);
+}
+#endif
 } // namespace
+
+TEST(Matrix2dTest, HostTransposeMatchesConjugateTransposeReference)
+{
+    check_host_transpose<double>(5, 3);
+    check_host_transpose<double>(3, 5);
+    check_host_transpose<std::complex<double>>(5, 3);
+    check_host_transpose<std::complex<double>>(3, 5);
+}
+
+TEST(Matrix2dTest, HostMatmulMatchesTripleLoopReference)
+{
+    check_host_matmul<double>(5, 4, 6);
+    check_host_matmul<std::complex<double>>(5, 4, 6);
+}
+
+TEST(Matrix2dTest, SerialDegenerateDistributionTransposeAndMatmul)
+{
+    const std::shared_ptr<const BlockCyclicDistributionInformation> transpose_distribution
+        = make_frozen_distribution(5, 3);
+    Matrix2d<double> transpose_source(transpose_distribution);
+    fill_global_values(transpose_source);
+    verify_global_matrix(transpose_source.transpose().gather(),
+                         make_host_transpose_reference<double>(5, 3));
+
+    const std::shared_ptr<const BlockCyclicDistributionInformation> left_distribution
+        = make_frozen_distribution(5, 4);
+    const std::shared_ptr<const BlockCyclicDistributionInformation> right_distribution
+        = make_frozen_distribution(4, 6);
+    Matrix2d<double> left(left_distribution);
+    Matrix2d<double> right(right_distribution);
+    fill_global_values(left);
+    fill_global_values(right, 10.0);
+    verify_global_matrix(left.matmul(right).gather(),
+                         make_host_matmul_reference<double>(5, 4, 6));
+
+    const std::shared_ptr<const BlockCyclicDistributionInformation> complex_transpose_distribution
+        = make_frozen_distribution(5, 3);
+    Matrix2d<std::complex<double>> complex_transpose_source(complex_transpose_distribution);
+    fill_global_values(complex_transpose_source);
+    verify_global_matrix(
+        complex_transpose_source.transpose().gather(),
+        make_host_transpose_reference<std::complex<double>>(5, 3));
+
+    const std::shared_ptr<const BlockCyclicDistributionInformation> complex_left_distribution
+        = make_frozen_distribution(5, 4);
+    const std::shared_ptr<const BlockCyclicDistributionInformation> complex_right_distribution
+        = make_frozen_distribution(4, 6);
+    Matrix2d<std::complex<double>> complex_left(complex_left_distribution);
+    Matrix2d<std::complex<double>> complex_right(complex_right_distribution);
+    fill_global_values(complex_left);
+    fill_global_values(complex_right, 10.0);
+    verify_global_matrix(
+        complex_left.matmul(complex_right).gather(),
+        make_host_matmul_reference<std::complex<double>>(5, 4, 6));
+}
+
+#ifdef __MPI
+TEST(Matrix2dTest, TransposeDistributedMatchesHost)
+{
+    const std::vector<std::pair<int, int>> grids = available_process_grids();
+    for (std::size_t grid_index = 0; grid_index < grids.size(); ++grid_index)
+    {
+        check_distributed_transpose<double>(5, 3,
+                                            grids[grid_index].first,
+                                            grids[grid_index].second,
+                                            3);
+        check_distributed_transpose<double>(3, 5,
+                                            grids[grid_index].first,
+                                            grids[grid_index].second,
+                                            3);
+        check_distributed_transpose<std::complex<double>>(5, 3,
+                                                          grids[grid_index].first,
+                                                          grids[grid_index].second,
+                                                          3);
+        check_distributed_transpose<std::complex<double>>(3, 5,
+                                                          grids[grid_index].first,
+                                                          grids[grid_index].second,
+                                                          3);
+    }
+}
+
+TEST(Matrix2dTest, MatmulDistributedMatchesHost)
+{
+    const std::vector<std::pair<int, int>> grids = available_process_grids();
+    for (std::size_t grid_index = 0; grid_index < grids.size(); ++grid_index)
+    {
+        check_distributed_matmul<double>(5, 4, 6,
+                                         grids[grid_index].first,
+                                         grids[grid_index].second,
+                                         3);
+        check_distributed_matmul<std::complex<double>>(5, 4, 6,
+                                                       grids[grid_index].first,
+                                                       grids[grid_index].second,
+                                                       3);
+    }
+}
+
+TEST(Matrix2dTest, UnsupportedDistributedTypesThrow)
+{
+    const std::vector<std::pair<int, int>> grids = available_process_grids();
+    const std::pair<int, int>& grid = grids[0];
+    {
+        Matrix2d<int> source(5, 3, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(source.transpose(), std::invalid_argument);
+    }
+    {
+        Matrix2d<float> source(5, 3, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(source.transpose(), std::invalid_argument);
+    }
+    {
+        Matrix2d<std::complex<float>> source(5, 3, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(source.transpose(), std::invalid_argument);
+    }
+    {
+        Matrix2d<int> left(5, 4, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        Matrix2d<int> right(4, 6, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(left.matmul(right), std::invalid_argument);
+    }
+    {
+        Matrix2d<float> left(5, 4, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        Matrix2d<float> right(4, 6, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(left.matmul(right), std::invalid_argument);
+    }
+    {
+        Matrix2d<std::complex<float>> left(5, 4, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        Matrix2d<std::complex<float>> right(4, 6, grid.first, grid.second, 3, MPI_COMM_WORLD);
+        EXPECT_THROW(left.matmul(right), std::invalid_argument);
+    }
+}
+
+TEST(Matrix2dTest, IncompatibleDistributionThrows)
+{
+    const std::vector<std::pair<int, int>> grids = available_process_grids();
+    const std::pair<int, int>& grid = grids[0];
+    const int block = 3;
+    {
+        Matrix2d<double> first(8, 6, grid.first, grid.second, block, MPI_COMM_WORLD);
+        Matrix2d<double> different_block(6, 8, grid.first, grid.second, block + 1, MPI_COMM_WORLD);
+        fill_global_values(first);
+        fill_global_values(different_block, 10.0);
+        EXPECT_THROW(first.matmul(different_block), std::invalid_argument);
+    }
+    if (grids.size() > 1)
+    {
+        const std::pair<int, int>& other_grid = grids[1];
+        Matrix2d<double> first(8, 6, grid.first, grid.second, block, MPI_COMM_WORLD);
+        Matrix2d<double> different_grid(6, 8, other_grid.first, other_grid.second, block, MPI_COMM_WORLD);
+        fill_global_values(first);
+        fill_global_values(different_grid, 10.0);
+        EXPECT_THROW(first.matmul(different_grid), std::invalid_argument);
+    }
+    {
+        Matrix2d<double> first(8, 6, grid.first, grid.second, block, MPI_COMM_WORLD);
+        Matrix2d<double> different_context(6, 8, grid.first, grid.second, block, MPI_COMM_WORLD);
+        fill_global_values(first);
+        fill_global_values(different_context, 10.0);
+        EXPECT_THROW(first.matmul(different_context), std::invalid_argument);
+    }
+}
+
+TEST(Matrix2dTest, DescriptorAddressStableAcrossOperators)
+{
+    const std::vector<std::pair<int, int>> grids = available_process_grids();
+    const std::pair<int, int>& grid = grids[0];
+    const int block = 3;
+    Matrix2d<double> left(5, 4, grid.first, grid.second, block, MPI_COMM_WORLD);
+    const int left_blacs_context = left.get_blacs_context();
+    const std::shared_ptr<const BlockCyclicDistributionInformation> right_distribution
+        = make_frozen_distribution(4, 6, block, left_blacs_context);
+    Matrix2d<double> right(right_distribution);
+    fill_global_values(left);
+    fill_global_values(right, 10.0);
+
+    const int* const left_descriptor = left.get_descriptor();
+    const int* const right_descriptor = right.get_descriptor();
+
+    const Matrix2d<double> transposed = left.transpose();
+    const Matrix2d<double> product = left.matmul(right);
+
+    EXPECT_EQ(left.get_descriptor(), left_descriptor);
+    EXPECT_EQ(right.get_descriptor(), right_descriptor);
+    EXPECT_EQ(left.get_blacs_context(), transposed.get_blacs_context());
+    EXPECT_EQ(left.get_blacs_context(), product.get_blacs_context());
+
+    verify_global_matrix(product.gather(),
+                         make_host_matmul_reference<double>(5, 4, 6));
+}
+#endif
 
 TEST(Matrix2dTest, HostConstructionAndRowMajorLayout)
 {
