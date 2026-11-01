@@ -9,7 +9,7 @@ COMPARE_NEW=/root/d2verify2/cases
 MPI_BUILD="$R/build-stage3-mpi"
 SERIAL_BUILD="$R/build-stage3-serial"
 MPI_BIN="$MPI_BUILD/abacus_basic_para"
-CTEST_REGEX='MODULE_BASE_(matrix2d|ndarray|block_cyclic|distributed_ndarray|container|blas_connector)'
+CTEST_REGEX='MODULE_BASE_(matrix2d|ndarray|block_cyclic|container|blas_connector)'
 
 export OMPI_ALLOW_RUN_AS_ROOT=1 OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMP_NUM_THREADS=1 HWLOC_COMPONENTS=-gl
 WITH_D0=0

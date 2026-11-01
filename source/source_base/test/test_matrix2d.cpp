@@ -3,7 +3,6 @@
 #endif
 
 #include "source_base/matrix2d.h"
-#include "source_base/module_container/NDArray/distributed_ndarray.h"
 
 #ifdef __MPI
 #include "source_base/parallel_common.h"

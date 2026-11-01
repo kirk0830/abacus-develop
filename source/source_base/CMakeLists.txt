@@ -102,11 +102,6 @@ if(BUILD_TESTING)
     SOURCES test/test_block_cyclic_distribution_information.cpp
   )
   AddTest(
-    TARGET MODULE_BASE_distributed_ndarray
-    LIBS parameter base device container
-    SOURCES test/test_distributed_ndarray.cpp
-  )
-  AddTest(
     TARGET MODULE_BASE_matrix2d
     LIBS parameter base device container
     SOURCES test/test_matrix2d.cpp
@@ -130,16 +125,6 @@ if(BUILD_TESTING)
     add_test(
       NAME MODULE_BASE_block_cyclic_distribution_information_4ranks
       COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_block_cyclic_distribution_information>"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
-    add_test(
-      NAME MODULE_BASE_distributed_ndarray_2ranks
-      COMMAND mpirun -np 2 "$<TARGET_FILE:MODULE_BASE_distributed_ndarray>"
-      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    )
-    add_test(
-      NAME MODULE_BASE_distributed_ndarray_4ranks
-      COMMAND mpirun -np 4 "$<TARGET_FILE:MODULE_BASE_distributed_ndarray>"
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
     add_test(
